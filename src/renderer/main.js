@@ -9,6 +9,7 @@ import Viewer from 'v-viewer'
 import 'viewerjs/dist/viewer.css'
 import { wsBus } from 'api/websocket/eventBus.js';
 import CryptoJS from 'api/crypto'
+
 // 自定义的全局组件
 import layerContent from './base/layer'; // 弹框插件
 import spinnerContent from './base/spinner'; // 加载中插件
@@ -28,11 +29,11 @@ Vue.http = Vue.prototype.$http = axios
 // websocket服务
 let websocket = new WebSocket('ws://10.18.13.159:9011/websocket')
 Vue.ws = Vue.prototype.$ws = websocket
+Vue.wsBus = Vue.prototype.$wsBus = wsBus
 
 // websocket打开
 websocket.onopen = function() {
-    console.log('websocket open');
-    Vue.ws.send('我传信息过来了哦')
+    console.log('websocket open')
 }
 // // websocket关闭
 // websocket.onclose = function() {
@@ -62,19 +63,13 @@ Vue.use(Viewer, {
 /* eslint-disable no-new */
 new Vue({
     components: { App },
-    created() {
-        // websocket消息
-        websocket.onmessage = function(e) {
-            setTimeout(() => {
-                wsBus.$emit('haha', '哈哈哈哈')
-            }, 20)
-        }
-    },
     mounted() {
-        // // websocket消息
-        // websocket.onmessage = function(e) {
-        //     wsBus.$emit('haha', e.data)
-        // }
+        // websocket消息
+        websocket.onmessage = (res) => {
+          let data = JSON.parse(res.data)
+          console.log('有ws消息进来', data)
+          wsBus.$emit(`${data.cmdid}`, data)
+        }
     },
     router,
     store,

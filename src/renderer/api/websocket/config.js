@@ -1,0 +1,1 @@
+export const yan = 'fghj1hui4ka51nndssa'

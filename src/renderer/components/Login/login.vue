@@ -4,12 +4,12 @@
       <img src="./imgs/logo.png" class="logo" />
       <div class="login-info">
         <div class="user-box">
-          <input v-model="loginInfo.credential" placeholder="请输入用户名" />
+          <input v-model="groupLoginParams.credential" placeholder="请输入用户名" />
           <img
             v-show="userList && userList.length > 0"
             class="arrow-d"
             src="./imgs/arrow_d.png"
-            @click.stop="userListOnOff"
+            @click.stop="() => {this.userListShow = !this.userListShow}"
           />
           <ul class="user-list" v-show="userListShow">
             <li v-for="(item, index) in userList" :key="item" @click="changeUser(item)">
@@ -19,7 +19,12 @@
             </li>
           </ul>
         </div>
-        <input class="password" type="password" v-model="loginInfo.password" placeholder="请输入密码" />
+        <input
+          class="password"
+          type="password"
+          v-model="groupLoginParams.password"
+          placeholder="请输入密码"
+        />
         <label class="checkbox">
           <input type="checkbox" v-model="pswRemember" @click.stop="remember" />
           <img v-show="rememberPsw" src="./imgs/checkbox-on.png" />
@@ -28,10 +33,10 @@
         </label>
       </div>
       <div class="btn login" @click="doLogin">登录</div>
-      <div class="btn logout" @click="close">退出</div>
+      <div class="btn logout" @click="() => {this.$electron.ipcRenderer.send('close')}">退出</div>
       <div class="tips">
         <p>Copyright© 浙江金融交易中心股份有限公司</p>
-        <p class="update" @click="updateStaus">综合客服系统 更新说明</p>
+        <p class="update" @click="() => {this.$electron.ipcRenderer.send('updateStatus')}">综合客服系统 更新说明</p>
       </div>
     </div>
     <layer-content ref="layer"></layer-content>
@@ -40,6 +45,9 @@
 <script>
 import { mapMutations, mapGetters } from 'vuex'
 import { GROUPAPI } from 'api/http/groupChat'
+import { yan } from 'api/websocket/config'
+import { copy, copy2 } from 'common/js/util'
+import md5 from 'md5'
 
 export default {
   name: 'login',
@@ -51,18 +59,31 @@ export default {
     // 检查 是否记住密码/是否有已登过账户
     this.checkAccount()
   },
+  mounted() {
+    // 监听会话登录结果
+    this.ListenSessionLogin()
+  },
   data() {
     return {
-      // 弹框内容
-      // layerText: '',
+      // 表示2个登陆请求的状态
+      loginOk: 0,
+      // 防止多次点击登录请求
+      isLoginOk: 0,
       // 用户列表下拉框是否显示
       userListShow: false,
       // 是否记住密码
       pswRemember: false,
-      // 登录用户信息
-      loginInfo: {
-        credential: '',
-        password: ''
+      // 会话登录请求参数
+      sessionLoginParams: {
+        usrno: '', // 用户名
+        password: '', // 密码
+        usertype: '3', // 用户类型(3客服)
+        force: false // ws无法连接到服务器时为true
+      },
+      // 群聊登录请求参数
+      groupLoginParams: {
+        credential: '', // 用户名
+        password: '' // 密码
       }
       // 用户列表
       // userList: ['zj001', 'zj002', 'zj003']
@@ -75,7 +96,8 @@ export default {
       // 是否记住密码 boolean
       'rememberPsw',
       // 记住的登录密码 string
-      'loginPsw'
+      'loginPsw',
+      'sUserInfo'
     ])
   },
   methods: {
@@ -85,54 +107,79 @@ export default {
       this.userListShow = false
     },
     // 登录
-    doLogin() {
-      // var bb = CryptoJS.encryption('wangjuntao')
-      // console.log(CryptoJS.decrypt(bb))
-      GROUPAPI.login(this.loginInfo)
+    async doLogin() {
+      // 防止多次点击登录请求
+      if (this.isLoginOk !== 0) {
+        return
+      }
+      this.isLoginOk += 2
+      // 登录——会话
+      this.doSessionLogin()
+      // 登录——群聊
+      this.doGroupLogin()
+    },
+    // 登录——会话
+    doSessionLogin() {
+      this.sessionLoginParams.usrno = this.groupLoginParams.credential
+      this.sessionLoginParams.password = md5(
+        `${this.groupLoginParams.password}${yan}`
+      )
+      let data = JSON.stringify({
+        cmdid: 1002,
+        data: this.sessionLoginParams || null
+      })
+      this.$ws.send(data)
+    },
+    // 监听会话登录结果
+    ListenSessionLogin() {
+      this.$wsBus.$on('1002', (res) => {
+        if (res.returncode === '0') {
+          let sUserInfo = copy(res.data)
+          // 客服状态默认为在线状态
+          if (sUserInfo.status == 0) {
+            sUserInfo.status = '1'
+          }
+          this.SET_SUSERINFO({
+            sUserInfo: sUserInfo
+          })
+          console.log('会话用户信息', this.sUserInfo)
+          this.loginSuccess()
+          this.isLoginOk -= 1
+        } else {
+          this.loginOk -= 1
+          this.isLoginOk -= 1
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 登录——群聊
+    doGroupLogin() {
+      GROUPAPI.login(this.groupLoginParams)
         .then(res => {
           // 登录成功
           if (res.data.code === '0000') {
-            var userInfo = JSON.parse(this.$crypto.decrypt(res.data.body))
-            // console.log('登录成功', resData)
+            var gUserInfo = JSON.parse(this.$crypto.decrypt(res.data.body))
             // 去获取用户详情
             GROUPAPI.gUserInfo({
-              userid: userInfo.userId,
-              fundAccount: userInfo.fundAccount
+              userid: gUserInfo.userId,
+              fundAccount: gUserInfo.fundAccount
             })
               .then(res => {
                 if (res.data.code === '0000') {
-                  var userDetailInfo = JSON.parse(this.$crypto.decrypt(res.data.body))
-                  // console.log('获取用户信息成功', userInfo)
-                  userInfo.cookie = userDetailInfo.cookie
-                  userInfo.headurl = userDetailInfo.headurl
-                  userInfo.kxcode = userDetailInfo.kxcode
-                  userInfo.lv = userDetailInfo.lv
-                  userInfo.nickname = userDetailInfo.nickname
-                  this.SET_USERINFO({
-                    userInfo: userInfo
+                  console.log('详细用户信息', res)
+                  var userDetailInfo = JSON.parse(
+                    this.$crypto.decrypt(res.data.body)
+                  )
+                  console.log('获取用户信息成功', gUserInfo)
+                  gUserInfo.cookie = userDetailInfo.cookie
+                  gUserInfo.headurl = userDetailInfo.headurl
+                  gUserInfo.kxcode = userDetailInfo.kxcode
+                  gUserInfo.lv = userDetailInfo.lv
+                  gUserInfo.nickname = userDetailInfo.nickname
+                  this.SET_GUSERINFO({
+                    gUserInfo: gUserInfo
                   })
-                  let userList = JSON.parse(JSON.stringify(this.userList))
-                  // 如果userList中不存在当前登录账户，就把当前登录账户记录缓存，用于用户名下拉框
-                  if (!Array.isArray(userList)) {
-                    userList = []
-                  }
-                  let isHave = userList.find((e, i, arr) => {
-                    return e === this.loginInfo.credential
-                  })
-                  if (!isHave) {
-                    userList.push(this.loginInfo.credential)
-                    this.SET_USERLIST({
-                      userList: userList
-                    })
-                  }
-                  // 如果记住当前密码勾选，记住当前登录密码
-                  if (this.rememberPsw) {
-                    this.SET_LOGINPSW({
-                      loginPsw: this.loginInfo.password
-                    })
-                  }
-                  // 打开主界面
-                  this.$electron.ipcRenderer.send('login')
+                  this.loginSuccess()
                 } else {
                   // 查询用户信息失败
                   this.$refs.layer.show(res.data.message)
@@ -141,22 +188,61 @@ export default {
               .catch(res => {
                 this.$refs.layer.show(res)
               })
+              this.isLoginOk -= 1
           } else {
+            this.loginOk -= 1
+            this.isLoginOk -= 1
             // 登录失败
             this.$refs.layer.show(res.data.message)
           }
         })
         .catch(res => {
+          this.loginOk -= 1
+          this.isLoginOk -= 1
           this.$refs.layer.show(res)
         })
     },
-    // 退出程序
-    close() {
-      this.$electron.ipcRenderer.send('close', '哈达的')
+    // 登录成功执行的回调函数
+    loginSuccess() {
+      // 另一边登录请求还未完成
+      if (this.loginOk === 0) {
+        this.loginOk += 1
+      } else if (this.loginOk === 1) {
+        // 另一边登录请求成功
+        let userList = copy(this.userList)
+        // 如果userList中不存在当前登录账户，就把当前登录账户记录缓存，用于用户名下拉框
+        if (!Array.isArray(userList)) {
+          userList = []
+        }
+        let isHave = userList.find((e, i, arr) => {
+          return e === this.groupLoginParams.credential
+        })
+        if (!isHave) {
+          userList.push(this.groupLoginParams.credential)
+          this.SET_USERLIST({
+            userList: userList
+          })
+        }
+        // 如果记住当前密码勾选，记住当前登录密码
+        if (this.rememberPsw) {
+          this.SET_LOGINPSW({
+            loginPsw: this.groupLoginParams.password
+          })
+        }
+        console.log(this.$electron.remote.getCurrentWindow().getBounds())
+        this.$router.push({ path: 'main' })
+        this.$electron.remote.getCurrentWindow().setBounds({ x: 140, y: 98, width: 1000, height: 800 })
+        // 打开主界面
+        // this.$electron.ipcRenderer.send('login')
+      }
     },
+    // 退出程序
+    // close() {
+    //   this.$electron.ipcRenderer.send('close', '哈达的')
+    // },
     // 改变 登录用户
     changeUser(item) {
-      this.loginInfo.credential = item
+      this.groupLoginParams.credential = item
       this.userListShow = false
     },
     // 删除 用户登录列表-可选项
@@ -171,9 +257,9 @@ export default {
       })
     },
     // 用户登录列表——显隐
-    userListOnOff() {
-      this.userListShow = !this.userListShow
-    },
+    // userListOnOff() {
+      
+    // },
     // 是否记住密码——状态记录
     remember() {
       this.SET_REMEMBERPSW({
@@ -181,19 +267,14 @@ export default {
       })
     },
     // 更新说明——打开
-    updateStaus() {
-      this.$electron.ipcRenderer.send('updateStatus')
-    },
-    // 弹框提示——显示
-    // layerShow(text) {
-    //   this.layerText = text
-    //   this.$refs.layer.show()
+    // updateStaus() {
+    //   this.$electron.ipcRenderer.send('updateStatus')
     // },
     // 检查 是否记住密码/是否有已登过账户
     checkAccount() {
       // 检查是否记住密码-密码自动输入
       if (this.rememberPsw && this.loginPsw) {
-        this.loginInfo.password = this.loginPsw
+        this.groupLoginParams.password = this.loginPsw
       } else {
         // 清空记住的密码
         this.SET_LOGINPSW({
@@ -202,11 +283,12 @@ export default {
       }
       // 检查是否有已登录过的账户-账户自动输入
       if (this.userList && this.userList.length > 0) {
-        this.loginInfo.credential = this.userList[0]
+        this.groupLoginParams.credential = this.userList[0]
       }
     },
     ...mapMutations({
-      SET_USERINFO: 'SET_USERINFO', // 当前登录用户信息
+      SET_GUSERINFO: 'SET_GUSERINFO', // 群聊当前登录用户信息
+      SET_SUSERINFO: 'SET_SUSERINFO', // 当前登录用户信息
       SET_REMEMBERPSW: 'SET_REMEMBERPSW', // 是否记住密码 Boolean
       SET_LOGINPSW: 'SET_LOGINPSW', // 记住的登录密码 String
       SET_USERLIST: 'SET_USERLIST' // 记住的已经登录过账户列表 // Array

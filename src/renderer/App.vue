@@ -1,5 +1,6 @@
 <template>
   <div id="app" @click="globalEvent" style="height: 100%;">
+    <!-- <spinner-content v-show="isLoading" class="spinner" style="margin-top: 20px;"></spinner-content> -->
     <router-view></router-view>
   </div>
 </template>
@@ -9,9 +10,14 @@ import { mapMutations } from "vuex";
 
 export default {
   name: "pc-chat",
-  // computed: {
-  //   ...mapGetters(["faceImgShow"])
-  // },
+  computed: {
+    // ...mapGetters(["loading"])
+  },
+  data() {
+    return {
+      isLoading: this.$store.state.loading
+    }
+  },
   created() {
     this.SET_CHATTYPE({
       chatType: 1

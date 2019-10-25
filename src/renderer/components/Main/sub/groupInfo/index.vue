@@ -67,7 +67,7 @@ import { remote } from 'electron'
 import { mapGetters, mapMutations } from 'vuex'
 import { copy, faceImgMap } from 'common/js/util'
 import { GROUPAPI } from 'api/http/groupChat'
-// import { userInfo } from 'os';
+// import { gUserInfo } from 'os';
 // const MEMBER = 1;
 
 const Menu = remote.Menu
@@ -86,7 +86,7 @@ export default {
   },
   computed: {
     // 用户信息
-    ...mapGetters(['userInfo'])
+    ...mapGetters(['gUserInfo'])
   },
   data() {
     return {
@@ -200,7 +200,7 @@ export default {
     // 群成员右键打开菜单
     openMenu(data) {
       // 自己的话没弹窗
-      if (data.memberid === this.userInfo.userId) {
+      if (data.memberid === this.gUserInfo.userId) {
         return false
       }
       this.clickRightData = data

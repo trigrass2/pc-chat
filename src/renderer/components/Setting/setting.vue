@@ -98,30 +98,30 @@ export default {
       color: $red;
     }
     .head {
-      background: url("./head_on.png");
+      background: url("./img/head_on.png");
     }
     .info {
-      background: url("./info_on.png");
+      background: url("./img/info_on.png");
     }
     .pwd {
-      background: url("./pwd_on.png");
+      background: url("./img/pwd_on.png");
     }
     .kpi {
-      background: url("./kpi_on.png");
+      background: url("./img/kpi_on.png");
     }
   }
   .default {
     .head {
-      background: url("./head.png");
+      background: url("./img/head.png");
     }
     .info {
-      background: url("./info.png");
+      background: url("./img/info.png");
     }
     .pwd {
-      background: url("./pwd.png");
+      background: url("./img/pwd.png");
     }
     .kpi {
-      background: url("./kpi.png");
+      background: url("./img/kpi.png");
     }
   }
   li {

@@ -1,13 +1,13 @@
 <template>
-  <div class="wrap" style="height: 100%;">
+  <div class="main-wrap" @click="()=>{this.waitListShow=false;this.topCustListShow=false}">
     <!-- 头部栏 -->
     <div class="user-info">
       <div class="info">
-        <img src="#" width="40px" height="20px" />
-        <!-- <span class="name" @click="haha">sdadasd</span> -->
-        <span class="name">sdadasd</span>
+        <img class="headimg" :src="sUserInfo.headurl" />
+        <span class="name">{{sUserInfo.nickname}}</span>
+        <span class="skill">技能:({{sUserInfo.cusinfo.skills}})</span>
         <div class="status">
-          <select v-model="selected">
+          <select v-model="sUserInfo.status" @change="changeStatus">
             <option value="1">正常</option>
             <option value="2">离开</option>
           </select>
@@ -36,22 +36,70 @@
         <div class="serve-status">
           <div class="max">
             <span>最大接待人数:</span>
-            <span class="btn" @click="reduce">-</span>
-            <span class="number">3</span>
-            <span class="btn" @click="add">+</span>
+            <span class="btn" @click="serviceNum(-1)">-</span>
+            <span class="number">{{sUserInfo.cusinfo.maxsession}}</span>
+            <span class="btn" @click="serviceNum(1)">+</span>
           </div>
           <div class="wait">
-            <img src="#" />
-            <span>等待接入:0人</span>
-            <span class="btn">查看</span>
+            <img src="./img/waiting.png" />
+            <span>等待接入:{{waitNum}}人</span>
+            <span class="btn" @click.stop="checkWait">查看</span>
+          </div>
+          <div class="wait-list" v-show="waitListShow">
+            <ul>
+              <template v-if="!waitList">
+                <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
+              </template>
+              <template v-else-if="waitList && waitList.length > 0">
+                <li v-for="(wait, index) in waitList" :key="wait.id">
+                  <div class="top">
+                    <!-- <div class="index">{{index+1}}</div> -->
+                    <img
+                      :src="[wait.headurl ? wait.headurl : require('./sub/message/img/noface.gif')]"
+                    />
+                    <div class="name">{{ wait.nickname }}</div>
+                    <div class="time">{{wait.addtime}}</div>
+                  </div>
+                  <div class="bottom">
+                    <div>{{wait.sesorigin.name}}</div>
+                    VIP:{{wait.vip}}
+                    <img v-for="i in wait.lv" src="./sub/sidebar/img/viplvl.png" />
+                    <span v-if="wait.lv<=0">0</span>
+                  </div>
+                </li>
+              </template>
+              <div v-else class="noData">暂无数据</div>
+            </ul>
           </div>
           <div class="rank">
             <p>
               今日已接
-              <span>2</span>人次，排名
-              <span>2</span>
+              <span>{{mysessions}}</span>人次，排名
+              <span @click.stop="topCustListShow = true">{{myorder}}</span>
             </p>
           </div>
+          <div class="rank-list" v-show="topCustListShow">
+              <div class="top">
+                <div>排行</div>
+                <div>姓名</div>
+                <div>数量</div>
+              </div>
+              <div class="ul-wrap">
+                <ul>
+                  <template v-if="!topCustList">
+                    <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
+                  </template>
+                  <template v-else-if="topCustList && topCustList.length > 0">
+                    <li v-for="(cust, index) in topCustList" :key="cust.id">
+                      <div class="index">{{index+1}}</div>
+                      <div class="name">{{cust.nickname}}</div>
+                      <div class="num">{{cust.c}}</div>
+                    </li>
+                  </template>
+                  <div v-else class="noData">暂无数据</div>
+                </ul>
+              </div>
+            </div>
         </div>
         <div class="main-con">
           <div class="con-left">
@@ -72,10 +120,10 @@
               :privateInfo="currentPrivate.privateInfo"
               :privateMsgList="currentPrivate.privateMsgList"
               :groupMyMsgNum="groupMyMsgNum"
-              :privateMyMsgNum="privateMyMsgNum"
+              :privateMyMsgNum="currentSession.privateMyMsgNum"
             ></Textbox>
           </div>
-          <div class="con-right" v-show="groupInfoShow || sessionInfoShow || privateInfoShow">
+          <div class="con-right" v-show="groupInfoShow || privateInfoShow">
             <!-- 群聊相关 -->
             <groupInfo
               ref="groupInfo"
@@ -95,7 +143,7 @@
               v-show="privateInfoShow && chatType === 3"
             ></privateInfo>
             <!-- 会话相关 -->
-            <sessionInfo v-show="sessionInfoShow && chatType === 1"></sessionInfo>
+            <!-- <sessionInfo v-show="sessionInfoShow && chatType === 1"></sessionInfo> -->
           </div>
         </div>
       </div>
@@ -107,8 +155,9 @@
 <script>
 import { mapGetters, mapMutations } from 'vuex'
 import { GROUPAPI } from 'api/http/groupChat'
+import { sessionRank } from 'api/http/sessionChat'
 import { copy, copy2, debounce, formatDate } from 'common/js/util'
-// import { wsBus } from 'api/websocket/eventBus.js';
+import { addId } from 'common/js/business'
 
 // import Info from "./sub/info";
 import Sidebar from './sub/sidebar'
@@ -130,10 +179,38 @@ const ONLINE = 1
 export default {
   data() {
     return {
-      // 客服在线状态
-      selected: ONLINE,
-      qqq: '我是main.vue中的值',
-      // @我的消息列表
+      // 会话——排队人数
+      waitNum: 0,
+      // 会话——排队列表
+      // waitList: [
+      //   {
+      //     id: 1,
+      //     nickname: '哈哈哈哈哈',
+      //     addtime: '12:12:12',
+      //     sesorigin: {
+      //       name: '???/asd'
+      //     },
+      //     vip: 'asd',
+      //     lv: 4
+      //   }
+      // ],
+      waitList: null,
+      waitListShow: false,
+      // 会话——已经接待人数
+      mysessions: '未知',
+      // 会话——接待人数排名
+      myorder: '未知',
+      // 会话——接待人数排行榜
+      // topCustList: [
+      //   {
+      //     id: 1,
+      //     nickname: '哈是的哈是的哈实打实的',
+      //     c: 1021
+      //   }
+      // ],
+      topCustList: null,
+      topCustListShow: false,
+      // 群@我的消息列表
       atMeList: [],
       // 群聊群列表信息
       groupTeamList: null,
@@ -147,6 +224,17 @@ export default {
       groupsMsgCache: [],
       // 全部私聊消息缓存
       privatesMsgCache: [],
+      // 当前会话
+      currentSession: {
+        // 当前群信息
+        sessionInfo: null,
+        // 当前群，群成员
+        // groupMembers: null,
+        // 当前群，消息
+        sessionMsgList: null
+        // 当前群，历史消息
+        // sessionMsgHistory: null
+      },
       // 当前群
       groupCurrent: {
         // 当前群信息
@@ -208,15 +296,24 @@ export default {
   created() {
     // 初始化数据加载
     this.init()
+    // 监听客服状态改变——回执
+    this.listenStatus()
+    // 监听登出——回执
+    this.listenLogout()
+    // 监听修改最大接待人数——回执
+    this.listenServiceNum()
+    // 监听会话排队人数变化——回执
+    this.listenWaitNum()
+    // 监听会话排队列表——回执
+    this.listenGetWaitList()
+    // 获取会话排行
+    this.getSessionRank()
     // this.getHertBeat()
     // this.getGroupChatList()
     // 最新消息列表
     // this.getMsgLast()
     // 群未读消息
     // this.getGropNoReadMsg()
-    // wsBus.$on('haha', (e) => {
-    //   console.log('我成功了', this.qqq, e)
-    // });
   },
   mounted() {
     setTimeout(() => {
@@ -235,7 +332,8 @@ export default {
       'sessionInfoShow',
       'privateInfoShow',
       'chatType',
-      'userInfo',
+      'gUserInfo',
+      'sUserInfo',
       'unReadPrivateMsg',
       'unReadGroupMsg',
       'groupOperate',
@@ -253,9 +351,149 @@ export default {
     privateInfo
   },
   methods: {
+    // 改变客服状态
+    changeStatus() {
+      let _data = {
+        userid: this.sUserInfo.userid,
+        status: this.sUserInfo.status
+      }
+      let data = JSON.stringify({ cmdid: 1022, data: _data })
+      console.log('我发送的会话消息', data)
+      this.$ws.send(data)
+    },
+    // 监听客服状态改变——回执
+    listenStatus() {
+      this.$wsBus.$on('1022', res => {
+        console.log(res)
+        if (res.returncode === '0') {
+          console.log('监听客服状态改变——回执', this.sUserInfo)
+          this.SET_SUSERINFO({
+            sUserInfo: this.sUserInfo
+          })
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 登出
+    logout() {
+      let _data = {
+        userid: this.sUserInfo.userid
+      }
+      let data = JSON.stringify({ cmdid: 1010, data: _data })
+      console.log('登出', data)
+      this.$ws.send(data)
+    },
+    // 监听登出——回执
+    listenLogout() {
+      this.$wsBus.$on('1010', res => {
+        if (res.returncode === '0') {
+          this.$electron.ipcRenderer.send('logout')
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 修改最大接待人数
+    serviceNum(num) {
+      let maxNum = Number(this.sUserInfo.cusinfo.maxsession + num)
+      if (maxNum < 1) {
+        maxNum = 1
+      }
+      this.sUserInfo.cusinfo.maxsession = maxNum
+      let _data = {
+        userid: this.sUserInfo.userid,
+        maxsession: maxNum
+      }
+      let data = JSON.stringify({ cmdid: 1208, data: _data })
+      console.log('修改最大接待人数', data)
+      this.$ws.send(data)
+    },
+    // 监听修改最大接待人数——回执
+    listenServiceNum() {
+      this.$wsBus.$on('1208', res => {
+        if (res.returncode === '0') {
+          console.log('监听修改最大接待人数——回执', this.sUserInfo)
+          this.SET_SUSERINFO({
+            sUserInfo: this.sUserInfo
+          })
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 查看会话排队列表
+    checkWait() {
+      // 获取会话排队列表
+      this.getWaitList()
+      this.waitListShow = true
+    },
+    // 监听会话排队人数变化
+    listenWaitNum() {
+      this.$wsBus.$on('1205', res => {
+        console.log(res)
+        if (res.returncode === '0') {
+          console.log('监听会话排队人数变化')
+          this.waitNum = res.data.num
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 获取会话排队列表
+    getWaitList() {
+      let _data = {
+        userid: this.sUserInfo.userid
+      }
+      let data = JSON.stringify({ cmdid: 1206, data: _data })
+      console.log('获取会话排队列表', data)
+      this.$ws.send(data)
+    },
+    // 监听会话排队列表——回执
+    listenGetWaitList() {
+      this.$wsBus.$on('1206', res => {
+        console.log(res, '监听会话排队列表——回执')
+        if (res.returncode === '0') {
+          let list = res.data
+          if (list && list > 0) {
+            let id = 1
+            list.forEach((e, i, arr) => {
+              e.id = id
+              e.addtime = formatDate('hh:mm:ss', e.addtime)
+              id++
+            })
+          }
+          this.waitList = list
+          this.waitNum = list.length
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 获取会话排行
+    getSessionRank() {
+      sessionRank()
+        .then(res => {
+          console.log(res)
+          if (res.data.returncode === '0') {
+            this.myorder = res.data.myorder
+            this.mysessions = res.data.mysessions
+            this.topCustList = addId(res.data.list)
+          } else {
+            this.$refs.layer.show(res.returnmsg)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+      // 每隔10秒获取排行列表
+      setTimeout(() => {
+        this.getSessionRank()
+      }, 10000)
+    },
     // 心跳长轮询(未读私聊消息/未读群成员/未读群聊消息)
     async getHertBeat() {
-      console.log('进来心跳长轮询')
+      // console.log('进来心跳长轮询')
       //   setTimeout(() => {
       //     // 未读私聊消息
       //     this.SET_UNREADPMSG({
@@ -277,13 +515,13 @@ export default {
       //   }, 1500)
 
       // 获取未读消息前，先把私聊列表更新一下
-      await this.getPrivateList()
+      // await this.getPrivateList()
       // 获取未读消息
-      await GROUPAPI.gHertBeat({ userId: this.userInfo.userId })
+      await GROUPAPI.gHertBeat({ userId: this.gUserInfo.userId })
         .then(res => {
           if (res.data.code === '0000') {
             let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
-            console.log('未读消息数量', resData)
+            // console.log('未读消息数量', resData)
             var teampUnReads = resData.teamMessage.teamUnReadMessageMap
             var privateUnReads = resData.privateMessage.privateUnReadMessageMap
             // 遍历群未读消息
@@ -315,21 +553,16 @@ export default {
                 ) {
                   continue
                 }
-                console.log('诶')
                 // 此前心跳传过值且和当前心跳传的值相同时, 未读消息为0
                 if (all && all === teampUnReadNum) {
-                  console.log('诶1')
                   // 点击过该群聊列表,会清零
                   if (team.unReadNum && team.unReadNum === 0) {
-                    console.log('诶2')
                     num = 0
                   } else {
                     // 没点击过该群聊列表
-                    console.log('诶3')
                     num = teampUnReadNum - num
                   }
                 } else {
-                  console.log('诶4')
                   // 此前心跳未传过值 或 和当前心跳传的值不相同时
                   this.groupMyMsgNum[teampUnRead.teamId].all = teampUnReadNum
                   // 该群未读总消息数量-我的消息数量
@@ -350,7 +583,6 @@ export default {
                 let privateUnRead = privateUnReads[key]
                 let privateUnReadNum = privateUnRead.unReadPrivateMsgCount
                 // 此前心跳传的未读消息
-                console.log('哈哈哈哈')
                 let all = this.privateMyMsgNum[privateUnRead.fromUserId].all
                 // 此前在该群我发送消息的数量
                 let num = this.privateMyMsgNum[privateUnRead.fromUserId].my
@@ -425,17 +657,13 @@ export default {
     // 获取群相关信息(成员/聊天记录)
     async getGroupInfo(data, msgid, page) {
       this.groupCurrent.groupInfo = data
-      console.log('群信息', data)
       await this.getGroupMember(data)
       // 请求群历史消息
       await this.getGroupMsg(data, msgid, page)
     },
     // 获取私聊相关信息(聊天记录)
     async getPrivateInfo(data, page, type) {
-      console.log('选中私聊2')
       this.currentPrivate.privateInfo = data
-
-      console.log('选中私聊3', data)
       await this.getPrivateMsg(data, page, type)
     },
     // 初始化
@@ -467,7 +695,7 @@ export default {
     },
     // 群列表
     async getGroupChatList() {
-      await GROUPAPI.gChatList({ userId: this.userInfo.userId })
+      await GROUPAPI.gChatList({ userId: this.gUserInfo.userId })
         .then(res => {
           if (res.data.code === '0000') {
             let resData = this.$crypto.decrypt(res.data.body)
@@ -487,15 +715,14 @@ export default {
           }
         })
         .catch(res => {
-          // console.log(123123)
           this.$refs.layer.show(res)
         })
     },
     // 第一次群未读消息
     async getGropNoReadMsg() {
       await GROUPAPI.gNoReadMsgNumber({
-        userId: this.userInfo.userId,
-        fundAccount: this.userInfo.fundAccount
+        userId: this.gUserInfo.userId,
+        fundAccount: this.gUserInfo.fundAccount
       })
         .then(res => {
           if (res.data.code === '0000') {
@@ -528,7 +755,7 @@ export default {
      */
     getGroupMsg(group, msgid, page) {
       console.log('来请求群历史记录了', group, msgid, page)
-      this.groupHistoryParams.fromid = this.userInfo.userId
+      this.groupHistoryParams.fromid = this.gUserInfo.userId
       // 当前列表中离当前时间最远消息的uuid——用于分页
       if (msgid) {
         this.groupHistoryParams.msgid = msgid
@@ -667,7 +894,7 @@ export default {
      */
     async getGroupMember(data) {
       // console.log(123123123)
-      this.groupMemberParams.userId = this.userInfo.userId
+      this.groupMemberParams.userId = this.gUserInfo.userId
       this.groupMemberParams.teamid = data.teamid
       // console.log(this.groupMemberParams)
       await GROUPAPI.gMembers(this.groupMemberParams)
@@ -689,10 +916,6 @@ export default {
           this.$refs.layer.show(res)
         })
     },
-    // 登出
-    logout() {
-      this.$electron.ipcRenderer.send('logout')
-    },
     // 打开历时记录
     openHistory() {
       this.$electron.ipcRenderer.send('openHistory')
@@ -710,7 +933,7 @@ export default {
     // 给每个群增加部分字段
     async groupTeamsHandle() {
       // 用户id赋值
-      this.groupHistoryParams.fromid = this.userInfo.userId
+      this.groupHistoryParams.fromid = this.gUserInfo.userId
       // 遍历群获取群数据
       for (let i = 0; i < this.groupTeamList.length; i++) {
         var e = this.groupTeamList[i]
@@ -744,7 +967,7 @@ export default {
      * data: 当前私聊
      */
     async getPrivateMsg(data, page, type) {
-      this.privateHistoryParams.toid = this.userInfo.userId // 接收者id
+      this.privateHistoryParams.toid = this.gUserInfo.userId // 接收者id
       if (data) {
         this.privateHistoryParams.fromid = data.id // 发送者id
       }
@@ -825,7 +1048,7 @@ export default {
     // 给每个私聊增加部分字段
     // async groupPrivateHandle() {
     //   // 用户id赋值
-    //   this.groupHistoryParams.fromid = this.userInfo.userId
+    //   this.groupHistoryParams.fromid = this.gUserInfo.userId
     //   // 遍历群获取群数据
     //   console.log(1111, this.groupTeamList)
     //   for (let i = 0; i < this.groupTeamList.length; i++) {
@@ -859,7 +1082,7 @@ export default {
     // 获取私聊列表——从最新消息列表去获取
     async getPrivateList() {
       await GROUPAPI.gLastMsg({
-        userId: this.userInfo.userId
+        userId: this.gUserInfo.userId
       })
         .then(res => {
           if (res.data.code === '0000') {
@@ -1046,11 +1269,11 @@ export default {
     getAtMeMsg(msgInfo, atList) {
       atList.forEach((e1, i1, arr1) => {
         // 如果是at我的消息
-        if (e1.userid == this.userInfo.userId) {
+        if (e1.userid == this.gUserInfo.userId) {
           // 如果@我的消息在缓存atList中已经存在(同群同人),不做操作。
           if (
             this.atMeList.find((e2, i2, arr2) => {
-              return (e2.groupId == msgInfo.toid && e2.userId == msgInfo.fromid)
+              return e2.groupId == msgInfo.toid && e2.userId == msgInfo.fromid
             })
           ) {
             return false
@@ -1063,9 +1286,7 @@ export default {
             GROUPAPI.gUserInfo({ userid: msgInfo.fromid })
               .then(res => {
                 if (res.data.code === '0000') {
-                  let resData = JSON.parse(
-                    this.$crypto.decrypt(res.data.body)
-                  )
+                  let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
                   // 在atList中新增at信息
                   let atData = {
                     groupId: msgInfo.toid, // 群id
@@ -1097,7 +1318,8 @@ export default {
       SET_SESSION_MSG: 'SET_SESSION_MSG',
       SET_PRIVATEMSG: 'SET_PRIVATEMSG',
       // SET_FACEIMG: "SET_FACEIMG",
-      SET_CHATTYPE: 'SET_CHATTYPE'
+      SET_CHATTYPE: 'SET_CHATTYPE',
+      SET_SUSERINFO: 'SET_SUSERINFO'
       // SET_GROUPINFO: "SET_GROUPINFO",
       // SET_SESSIONINFO: "SET_SESSIONINFO"
     })
@@ -1106,16 +1328,44 @@ export default {
 </script>
 
 <style lang='scss' scoped rel="stylesheet/scss">
-.chat-wrap {
+.noData {
+  width: 100%;
+  text-align: center;
+  margin-top: 40px;
+  font-size: 16px;
+  color: rgb(83, 83, 83);
+}
+.main-wrap {
   height: 100%;
   display: flex;
+  flex-direction: column;
+  .user-info {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    justify-content: space-between;
+    padding-left: 20px;
+    padding-right: 20px;
+    align-items: center;
+    background-color: $red;
+  }
+  .chat-wrap {
+    flex: 1;
+  }
+}
+.chat-wrap {
+  display: flex;
   .chat-main {
+    display: flex;
+    flex-direction: column;
     flex: 3;
     .main-con {
-      height: 100%;
+      flex: 1;
       display: flex;
       .con-left {
-        position: relative;
+        display: flex;
+        flex-direction: column;
+        // position: relative;
         height: 100%;
         border-right: 1px solid $border;
         flex: 2;
@@ -1126,24 +1376,25 @@ export default {
     }
   }
 }
-.user-info {
-  width: 100%;
-  height: 40px;
-  display: flex;
-  justify-content: space-between;
-  padding-left: 20px;
-  padding-right: 20px;
-  align-items: center;
-  background-color: $red;
-}
 .info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 150px;
+  .headimg {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+  }
   .name {
     color: $blank;
     font-size: 12px;
+    font-weight: bold;
+    margin: 0 10px;
+  }
+  .skill {
+    color: $blank;
+    font-size: 12px;
+    margin-right: 10px;
   }
   .status {
     position: relative;
@@ -1188,6 +1439,36 @@ export default {
   background-color: $listHover;
   padding-left: 10px;
   font-size: 14px;
+  .top {
+    display: flex;
+    align-items: center;
+    img {
+      width: 40px;
+      height: 40px;
+      margin-right: 6px;
+      border-radius: 50%;
+    }
+    .time {
+      margin-top: -20px;
+      color: rgb(83, 83, 83);
+    }
+    .index {
+      font-size: 20px;
+      color: $green;
+      margin-right: 10px;
+    }
+    .name {
+      flex:1;
+      font-size: 14px;
+      width: 60px;
+      @include ellipsis(1);
+    }
+  }
+  .bottom {
+    font-size: 14px;
+    margin-top: 5px;
+    color: rgb(83, 83, 83);
+  }
   .max {
     margin-right: 10px;
     .btn {
@@ -1205,6 +1486,10 @@ export default {
     }
   }
   .wait {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 170px;
     margin-right: 10px;
     .btn {
       cursor: default;
@@ -1216,11 +1501,78 @@ export default {
       text-align: center;
     }
   }
+  .wait-list{
+    margin-top: 200px;
+    margin-left: 200px;
+    width: 200px;
+    background-color: #fff;
+    height: 350px;
+    position: absolute;
+    z-index: 1;
+    overflow: auto;
+    border: 1px solid #e5e5e5;
+    box-shadow: 0 0 10px rgba(0,0,10px,.4);
+    li{
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px;
+    }
+  }
   .rank {
     span {
       display: inline-block;
       margin: 0 4px;
       color: $red;
+    }
+  }
+  .rank-list{
+    top: 100px;
+    margin-left: 400px;
+    width: 200px;
+    background-color: #fff;
+    height: 350px;
+    position: absolute;
+    z-index: 1;
+    border: 1px solid #e5e5e5;
+    box-shadow: 0 0 10px rgba(0,0,10px,.4);
+    padding-top: 30px;
+    display: flex;
+    // position: relative;
+    flex-direction: column;
+    .top{
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      top: 0;
+      left: 0;
+      width: 100%;
+      border-bottom: 1px solid #e5e5e5;
+      height: 30px;
+      padding: 0 10px;
+    }
+    .ul-wrap{
+      flex: 1;
+      overflow: auto;
+      ul{
+        li{
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid #e5e5e5;
+          padding: 10px;
+          font-size: 16px;
+          .index{
+            color: $red;
+          }
+          .name{
+            width: 50px;
+            @include ellipsis(1);
+          }
+          .num{
+            color: $green;
+          }
+        }
+      }
     }
   }
 }

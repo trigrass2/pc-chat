@@ -12,143 +12,187 @@
       </li>
       <li
         :class="[tabSelected===3 ? 'active' : '', friendNew ? 'new' : ''  ]"
-        @click="changeTab(4)"
+        @click="changeTab(3)"
       >
         <span>同伴</span>
       </li>
     </ul>
     <!-- 会话 -->
-    <div class="session-content" v-show="tabSelected === 1">
-      <input v-model="sessionSearchText" type="text" placeholder="搜索会话" @input="sessionSearch" />
-      <div class="status-box">
-        <div
-          :class="[statusSelected == 1 ? 'active' : 'default', 'status']"
-          @click="changeSessionStatus(1)"
-        >
-          <div class="ing img"></div>
-          <div class="text">进行中</div>
-        </div>
-        <div
-          :class="[statusSelected == 2 ? 'active' : 'default', 'status']"
-          @click="changeSessionStatus(2)"
-        >
-          <div class="over img"></div>
-          <div class="text">已结束</div>
-        </div>
-      </div>
-      <ul class="chat-list">
-        <template v-if="sessionList.length > 0">
-          <li
-            v-for="(item, index) in sessionList"
-            :key="item.id"
-            :class="item.isSelected ? 'selected' : ''"
-            @click="sessionSelect(item)"
+    <div class="tab-list">
+      <div class="session-content" v-show="tabSelected === 1">
+        <input v-model="sessionSearchText" type="text" placeholder="搜索会话" />
+        <div class="status-box">
+          <div
+            :class="[!showFinished ? 'active' : 'default', 'status']"
+            @click="showFinished = false"
           >
-            <div v-show="item.unRead > 0" class="unread">{{item.unRead}}</div>
-            <div class="top">
-              <img :src="[item.head ? item.head : '../../../Setting/head.png']" />
-              <div class="top_center">
-                <div class="phone">{{item.phone | phoneSecriet}}</div>
-                <div class="status">{{item.status | sessionStatus}}</div>
-              </div>
-              <div class="time">{{item.time}}{{item.isSelected}}</div>
-            </div>
-            <div class="bottom">会话ID:{{item.sessionId}} VIP:{{item.vip}}</div>
-          </li>
-        </template>
-        <div v-else class="noData">暂无会话</div>
-      </ul>
-    </div>
-    <!-- 群组 -->
-    <div class="group-content" v-show="tabSelected === 2">
-      <!-- 群组列表 -->
-      <ul class="group-chat-content">
-        <template v-if="!groupTeamList">
-          <spinner-content class="spinner"></spinner-content>
-        </template>
-        <template v-else-if="groupTeamList && groupTeamList.length > 0">
-          <li
-            :class="item.isSelected ? 'selected': ''"
-            v-for="(item, index) in groupTeamList"
-            :key="item.teamid"
-            @click.stop="selectGroupChat(item)"
+            <div class="ing img"></div>
+            <div class="text">进行中</div>
+          </div>
+          <div
+            :class="[showFinished ? 'active' : 'default', 'status']"
+            @click="showFinished = true"
           >
-            <img :src="item.headurl" />
-            <div v-show="Number(item.unReadNum) > 0" class="unread">{{item.unReadNum}}</div>
-            <!-- <div class="unread">2</div> -->
-            <div class="text">{{item.teamname}}({{item.memberCount}})</div>
-            <div class="time">{{item.lastTime}}</div>
-          </li>
-        </template>
-        <div v-else class="noData">暂无群聊列表</div>
-      </ul>
-      <!-- 私聊列表 -->
-      <div class="private-chat-content">
-        <div class="title">私聊列表</div>
-        <ul class="private-list">
-          <template v-if="!privateTeamList">
+            <div class="over img"></div>
+            <div class="text">已结束</div>
+          </div>
+        </div>
+        <ul class="chat-list">
+          <template v-if="!sessionList">
             <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
           </template>
-          <template v-else-if="privateTeamList && privateTeamList.length > 0">
+          <template v-else-if="sessionList && sessionList.length > 0">
+            <li
+              v-for="(item, index) in sessionList"
+              :class="item.isSelected ? 'selected': ''"
+              :key="item.sesid"
+              v-show="sessionSearch(item) && ((item.status == '0' && !showFinished) || (item.status == '1' && showFinished))"
+              @click="selectSessionChat(item, index)"
+            >
+              <div
+                v-show="item.unReadNum && item.unReadNum > 0"
+                class="unread"
+              >{{ item.unReadNum || 0 }}</div>
+              <div class="top">
+                <img :src="[item.headurl ? item.headurl : require('./img/noface.gif')]" />
+                <div class="top_center">
+                  <div class="name">{{ item.nickname }}</div>
+                  <!-- <span v-if="item.inputMessage" class="chat-session-item-caogao">[草稿]</span> -->
+                  <div class="status">{{item.status | sessionStatus}}</div>
+                </div>
+                <div class="time">{{item.updatetime}}</div>
+              </div>
+              <div class="bottom">
+                会话ID:{{item.sesid}} VIP:
+                <img v-for="i in item.lv" src="./img/viplvl.png" />
+                {{item.vip}}
+                <span v-if="item.lv<=0">0</span>
+              </div>
+            </li>
+          </template>
+          <div v-else class="noData">暂无会话列表</div>
+        </ul>
+      </div>
+      <!-- 群组 -->
+      <div class="group-content" v-show="tabSelected === 2">
+        <!-- 群组列表 -->
+        <ul class="group-chat-content">
+          <template v-if="!groupTeamList">
+            <spinner-content class="spinner"></spinner-content>
+          </template>
+          <template v-else-if="groupTeamList && groupTeamList.length > 0">
             <li
               :class="item.isSelected ? 'selected': ''"
-              v-for="(item, index) in privateTeamList"
-              :key="item.id"
-              @click.stop="selectPrivateChat(item)"
+              v-for="(item, index) in groupTeamList"
+              :key="item.teamid"
+              @click.stop="selectGroupChat(item)"
             >
-              <img :src="item.headUrl" />
+              <img :src="item.headurl" />
               <div v-show="Number(item.unReadNum) > 0" class="unread">{{item.unReadNum}}</div>
-              <div class="text">{{item.name}}</div>
-              <div class="time">{{item.timeline | format('all')}}</div>
+              <!-- <div class="unread">2</div> -->
+              <div class="text">{{item.teamname}}({{item.memberCount}})</div>
+              <div class="time">{{item.lastTime}}</div>
             </li>
           </template>
-          <div v-else class="noData">暂无私聊列表～</div>
+          <div v-else class="noData">暂无群聊列表</div>
         </ul>
+        <!-- 私聊列表 -->
+        <div class="private-chat-content">
+          <div class="title">私聊列表</div>
+          <ul class="private-list">
+            <template v-if="!privateTeamList">
+              <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
+            </template>
+            <template v-else-if="privateTeamList && privateTeamList.length > 0">
+              <li
+                :class="item.isSelected ? 'selected': ''"
+                v-for="(item, index) in privateTeamList"
+                :key="item.id"
+                @click.stop="selectPrivateChat(item)"
+              >
+                <img :src="item.headUrl" />
+                <div v-show="Number(item.unReadNum) > 0" class="unread">{{item.unReadNum}}</div>
+                <div class="text">{{item.name}}</div>
+                <div class="time">{{item.timeline | format('all')}}</div>
+              </li>
+            </template>
+            <div v-else class="noData">暂无私聊列表～</div>
+          </ul>
+        </div>
+        <!-- @我的列表 -->
+        <div class="at-chat-content">
+          <div class="title">at我的</div>
+          <ul class="at-list">
+            <template v-if="atMeList.length > 0">
+              <li v-for="(item, index) in atMeList" :key="item.groupId">
+                <div class="text">{{item.sendTime}} {{item.userName}} 在 {{item.groupName}} 提到了我</div>
+              </li>
+            </template>
+            <div v-else class="noData">还没有人@我~</div>
+          </ul>
+        </div>
       </div>
-      <!-- @我的列表 -->
-      <div class="at-chat-content">
-        <div class="title">at我的</div>
-        <ul class="at-list">
-          <template v-if="atMeList.length > 0">
-            <li v-for="(item, index) in atMeList" :key="item.groupId">
-              <div class="text">{{item.sendTime}} {{item.userName}} 在 {{item.groupName}} 提到了我</div>
+      <!-- 同伴 -->
+      <div class="friend-content" v-show="tabSelected === 3">
+        <ul class="friend-list">
+          <template v-if="!friendList">
+            <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
+          </template>
+          <template v-else-if="friendList && friendList.length > 0">
+            <li
+              :class="item.isSelected ? 'selected': ''"
+              v-for="(item, index) in friendList"
+              :key="item.userid"
+              @click.stop="selseFriendChat(item, index)"
+            >
+              <img :src="item.headurl" />
+              <div class="text">{{item.nickname}}</div>
+              <div class="time">{{item.updatetime}}</div>
             </li>
           </template>
-          <div v-else class="noData">还没有人@我~</div>
+          <div v-else class="noData">暂无同伴列表~</div>
         </ul>
       </div>
-    </div>
-    <!-- 同伴 -->
-    <div class="friend-content" v-show="tabSelected === 3">
-      <ul class="friend-list">
-        <template v-if="friendList.length > 0">
-          <li v-for="(item, index) in friendList" :key="item.id">
-            <img :src="item.head" />
-            <div class="text">{{item.name}}</div>
-            <div class="time">{{item.time}}</div>
-          </li>
-        </template>
-        <div v-else class="noData">暂无同伴列表</div>
-      </ul>
+      <layer-content ref="layer"></layer-content>
     </div>
   </div>
 </template>
 
 <script>
-import { debounce, formatDate } from 'common/js/util.js'
+import { copy, copy2, debounce, formatDate } from 'common/js/util.js'
+import Session from 'common/js/session.js'
+import Friend from 'common/js/friend.js'
+import { SessionMessage, fiendMessage } from 'common/js/message.js'
 import { mapGetters, mapMutations } from 'vuex'
-// 会话
+import { friendList } from 'api/http/friendChat'
+import {
+  sessionList,
+  ip2area,
+  realInfo,
+  sessionChatList
+} from 'api/http/sessionChat'
+// 会话——chatType
 const SESSION = 1
-// 群聊
+// 群聊——chatType
 const GROUP = 2
+// 私聊——chatType
 const PRIVATE = 3
+// 同伴——chatType
+const FRIEND = 4
 // 会话-进行中
 const SESSION_ING = 1
+// 会话-已结束
+const SESSION_OVER = 2
 
 export default {
   computed: {
-    // 群聊相关信息显示  私聊列表  未读私聊消息
-    ...mapGetters(['groupInfoShow', 'privateList', 'unReadPrivateMsg'])
+    ...mapGetters([
+      'groupInfoShow', // 群聊相关信息显示
+      'sUserInfo', // 会话登录信息
+      'chatType', // 聊天类型
+      'sessionList', // 会话列表
+      'friendList' // 同伴列表
+    ])
   },
   props: {
     // 当前群信息
@@ -177,7 +221,7 @@ export default {
       // tab栏选中状态
       tabSelected: SESSION,
       // 会话状态
-      statusSelected: SESSION_ING,
+      showFinished: false,
       // 会话搜索内容
       sessionSearchText: '',
       // 会话新消息
@@ -190,147 +234,498 @@ export default {
       groupMemberParams: {
         teamid: '', // 群id
         userId: '' // 用户id
-      },
-      sessionList: [],
-      friendList: [
-        {
-          id: 1,
-          head: '../../../Setting/head_on.png',
-          name: '浙金大讲堂',
-          number: '23',
-          time: '2019-08-03'
-        },
-        {
-          id: 2,
-          head: '../../../Setting/head_on.png',
-          name: '浙金大讲堂',
-          number: '23',
-          time: '2019-08-03'
-        }
-      ],
-      sessionIng: [
-        {
-          id: 1,
-          // 手机号
-          phone: '17826894060',
-          // 头像
-          head: '../../../Setting/head_on.png',
-          // 时间
-          time: '15:12:23',
-          // 会话id
-          sessionId: '4433',
-          vip: '0',
-          // 未读消息数量
-          unRead: 0,
-          // 是否被选中
-          isSelected: false,
-          // 会话状态: 1-进行中 2-结束
-          status: 1
-        },
-        {
-          id: 2,
-          phone: '17826894060',
-          head: '',
-          time: '15:12:23',
-          sessionId: '4433',
-          vip: '0',
-          unRead: 0,
-          isSelected: false,
-          status: 1
-        }
-      ],
-      sessionOver: [
-        {
-          id: 6,
-          phone: '17826894060',
-          head: '',
-          time: '15:12:23',
-          sessionId: '4433',
-          vip: '0',
-          unRead: 99,
-          isSelected: false,
-          status: 2
-        },
-        {
-          id: 7,
-          phone: '17826894060',
-          head: '../../../Setting/head_on.png',
-          time: '15:12:23',
-          sessionId: '4433',
-          vip: '0',
-          unRead: 0,
-          isSelected: false,
-          status: 2
-        }
-      ]
+      }
     }
   },
   created() {
+    // 获取会话列表
+    this.getSessionList()
+    // 获取同伴列表
+    this.getFriendList()
+    // 监听会话列表
+    this.listenNewSession()
+    // 监听会话消息
+    this.listenNewSessionMsg()
+    // 监听同伴消息
+    this.listenNewFriendMsg()
     // 搜索防抖初始化
-    this.sessionSearch = debounce(this.sessionSearch, 500)
+    // this.sessionSearch = debounce(this.sessionSearch, 500)
   },
   methods: {
     // 会话/群聊/同伴 tab切换
     changeTab(num) {
-      var sessionShow, groupShow
-      // 会话
-      if (num === 1) {
-        sessionShow = true
-      } else {
-        sessionShow = false
-      }
-      // 群聊
-      if (num === GROUP) {
-        groupShow = true
-      } else {
-        groupShow = false
-      }
-      // 会话右侧内容框
-      this.SET_SESSIONINFO({
-        sessionInfoShow: sessionShow
-      })
-      // 群聊右侧内容框
-      this.SET_GROUPINFO({
-        groupInfoShow: groupShow
-      })
-      // tab的active项控制
+      // console.log(this.friendList)
+      // tab(会话/群聊/同伴)切换
       this.tabSelected = num
-      // 聊天类型
+      // 当前聊天类型(会话/群聊/同伴/私聊)切换
       this.SET_CHATTYPE({
         chatType: num
       })
-      // 若未选中过群聊，默认选中第一个
-      if (num === GROUP) {
-        if (this.groupInfo) {
-          this.selectGroupChat(this.groupInfo)
-        } else {
-          if (this.groupTeamList && this.groupTeamList.length > 0) {
-            this.selectGroupChat(this.groupTeamList[0])
-          }
-        }
-        // let hasSelected = this.groupTeamList.every((e, i, arr) => {
-        //   return e.isSelected === false
-        // })
-      }
-    },
-    sessionSelect(item) {
-      this.sessionList.forEach((e, i, arr) => {
-        this.$set(e, 'isSelected', false)
-        // e.isSelected = false
+      // 右侧信息栏内容显隐
+      let sessionShow, groupShow
+      num == SESSION ? sessionShow = true : sessionShow = false
+      num == GROUP ? groupShow = true : groupShow = false
+      this.SET_SESSIONINFO({
+        sessionInfoShow: sessionShow
       })
-      this.$set(e, 'isSelected', true)
-      // item.isSelected = true
+      this.SET_GROUPINFO({
+        groupInfoShow: groupShow
+      })
+      // 群聊——若未选中过群聊，默认选中第一个
+      // if (num === GROUP) {
+      //   if (this.groupInfo) {
+      //     this.selectGroupChat(this.groupInfo)
+      //   } else {
+      //     if (this.groupTeamList && this.groupTeamList.length > 0) {
+      //       this.selectGroupChat(this.groupTeamList[0])
+      //     }
+      //   }
+      // }
+    },
+    // 获取会话列表
+    getSessionList() {
+      sessionList({ userid: this.sUserInfo.userid })
+        .then(res => {
+          if (res.data.returncode === '0') {
+            let sessionList = copy2(this.sessionList)
+            console.log('原session列表:', res)
+            // 原sessionList不存在,就初始化sessionList
+            if (!sessionList) {
+              sessionList = []
+              this.SET_SESSIONLIST({
+                sessionList: []
+              })
+            }
+            // 原sessionList中,session已存在就更新/session不存在就新增
+            res.data.list.forEach((newSession, newI, arr) => {
+              var exists = false
+              // session已存在,更新状态
+              if (sessionList.length > 0) {
+                sessionList.forEach((oldSession, oldI) => {
+                  if (newSession.sesid == oldSession.sesid) {
+                    exists = true
+                    if (oldSession.status != newSession.status) {
+                      oldSession.status = newSession.status
+                      this.SET_EDITSESSION({
+                        index: oldI,
+                        session: oldSession
+                      })
+                    }
+                  }
+                })
+              }
+              if (exists) {
+                return
+              }
+              // session不存在,新增session
+              newSession.messageList = []
+              newSession.timeline = newSession.lastmsgtime
+              newSession.isSelected = false
+              newSession.unReadNum = 0
+              newSession.realinfo = null
+              let addSession = new Session(newSession)
+              this.SET_ADDSESSION({
+                session: addSession
+              })
+              // sessionList.push(addSession)
+            })
+            console.log('初始化请求会话列表', sessionList)
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+          // 每隔10秒更新一次会话列表
+          setTimeout(this.getSessionList, 10000)
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 获取同伴列表
+    getFriendList() {
+      friendList({ userid: this.sUserInfo.userid })
+        .then(res => {
+          if (res.data.returncode === '0') {
+            // 收集同伴信息
+            let fList = []
+            if (res.data.data && res.data.data.length > 0) {
+              res.data.data.forEach((e, i, arr) => {
+                let friend = new Friend(e)
+                fList.push(friend)
+              })
+            }
+            // console.log('同伴列表:', fList)
+            // 更新同伴列表
+            this.SET_FRIENDLIST({
+              friendList: fList
+            })
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 监听新会话进入
+    listenNewSession() {
+      this.$wsBus.$on('1201', res => {
+        if (res.returncode === '0') {
+          let sessionList = copy2(this.sessionList)
+          let newSession = res.data
+          // 原sessionList不存在,就初始化sessionList
+          if (!sessionList) {
+            sessionList = []
+            this.SET_SESSIONLIST({
+              sessionList: []
+            })
+          }
+          // 原sessionList中是否存在新会话
+          let isHas = sessionList.find((oldSession, i, arr) => {
+            return newSession.sesid == oldSession.sesid
+          })
+          // 存在就不继续执行
+          if (isHas) {
+            return
+          }
+          // 不存在就新增会话（字段重写）
+          newSession.guestsid = newSession.userid
+          newSession.terminal = newSession.sesorigin.terminal
+          newSession.category = newSession.sesorigin.category
+          newSession.timeline = Date.now()
+          newSession.isSelected = false
+          newSession.realinfo = null
+          newSession.unReadNum = 1
+          newSession.status = 0
+          newSession.messageList = [
+            {
+              msgtype: 99,
+              text: newSession.nickname + '接入了会话',
+              timeline: new Date().getTime(),
+              createtime: formatDate(Date.now(), 'hh:mm:ss')
+            }
+          ]
+          let addSession = new Session(newSession)
+          this.SET_ADDSESSION({
+            session: addSession
+          })
+          // sessionList.push(addSession)
+          // this.SET_SESSIONLIST({
+          //   sessionList: sessionList
+          // })
+          // 回复欢迎语
+          // if(this.welcomtext){
+          //   var back = kx.send(0,d.userid,d.sesid,vm.welcomtext);
+          //   if(back && back.msgkey){
+          //     var msg = {
+          //         mediatype:0,
+          //         content:back.msgbody,
+          //         headurl:vm.user.headurl,
+          //         isMine:true,
+          //         timeline:new Date().getTime(),
+          //         msgkey:back.msgkey,
+          //         msgid:null,
+          //         sendfailed:false
+          //       };
+          //     session.messageList.push(msg);
+          //   }
+          // }
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 监听会话消息
+    listenNewSessionMsg() {
+      this.$wsBus.$on('2001', res => {
+        if (res.returncode === '0') {
+          let sessionList = copy2(this.sessionList)
+          let newMsg = res.data
+          // 会话消息的标志是有sesid
+          if (!newMsg.sesid) {
+            return
+          }
+          console.log('新会话消息', newMsg)
+          // 原sessionList不存在,就初始化sessionList
+          if (!sessionList) {
+            sessionList = []
+            this.SET_SESSIONLIST({
+              sessionList: []
+            })
+          }
+          // 消息对应的会话是否存在
+          let oldSession = sessionList.find((oldSession, oldI) => {
+            return newMsg.sesid == oldSession.sesid
+          })
+          let oldIndex = sessionList.findIndex((oldSession, oldI) => {
+            return newMsg.sesid == oldSession.sesid
+          })
+          // 消息对应的会话已存在,新增消息
+          if (oldSession) {
+            // 新增消息
+            newMsg.isMine = newMsg.fromid == oldSession.customerid
+            let addMessage = new SessionMessage(newMsg)
+            oldSession.messageList.push(addMessage)
+            // 未读消息数量+1
+            if (!oldSession.isSelected) {
+              oldSession.unReadNum++
+            }
+            // 更新该会话的最新消息时间
+            oldSession.updatetime = formatDate(newMsg.timeline, 'hh:mm:ss')
+            this.SET_EDITSESSION({
+              index: oldIndex,
+              session: oldSession
+            })
+            // sessionList[oldIndex] = oldSession
+          } else {
+            // 消息对应的会话不存在,新增会话/新增消息
+            // 新增会话
+            let addSession = new Session({
+              guestsid: newMsg.fromid,
+              sesid: newMsg.sesid,
+              lv: newMsg.lv,
+              category: newMsg.category,
+              isSelected: false,
+              nickname: newMsg.fromname,
+              headurl: newMsg.fromheadurl,
+              timeline: newMsg.lastmsgtime,
+              unReadNum: 1,
+              status: 0,
+              messageList: []
+            })
+            // 新增消息
+            let addMessage = new SessionMessage(newMsg)
+            addMessage.isMine = newMsg.fromid == this.sUserInfo.userid
+            // 会话消息拼接
+            addSession.messageList.push(addMessage)
+            // 新增会话
+            this.SET_ADDSESSION({
+              session: addSession
+            })
+            // sessionList.push(addSession)
+          }
+          // 计算所有会话未读消息数量
+          // vm.reportNewMsgCount();
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
     },
     // 会话搜索
-    sessionSearch() {
-      console.log(111)
+    sessionSearch(session) {
+      if (session.nickname.toLowerCase().indexOf(this.sessionSearchText) > -1) {
+        // console.log('进来搜索了')
+        return true
+      }
+      return false
     },
-    // 会话切换状态
-    changeSessionStatus(num) {
-      this.statusSelected = num
-      num === 1
-        ? (this.sessionList = this.sessionIng)
-        : (this.sessionList = this.sessionOver)
+    // 选中会话
+    async selectSessionChat(session, index) {
+      let sessionList = copy2(this.sessionList)
+      session = copy2(session)
+      // 更新所有会话状态
+      sessionList.forEach((e, i, arr) => {
+        e.isSelected = false
+      })
+      session.isSelected = true
+      // 未读消息清空
+      session.unReadNum = 0
+      // 展示会话详情内容
+      this.SET_SESSIONINFO({
+        sessionInfoShow: true
+      })
+      // 切换聊天模式
+      this.SET_CHATTYPE({
+        chatType: SESSION
+      })
+      // 真实信息查询
+      if (!session.realinfo) {
+        await realInfo({
+          userid: this.sUserInfo.userid,
+          custid: session.guestsid
+        })
+          .then(res => {
+            if (res.data.returncode == '0') {
+              session.realinfo = res.data.info
+            } else {
+              session.realinfo = {
+                name: '未知',
+                mobile: '未知'
+              }
+            }
+          })
+          .catch(res => {
+            this.$refs.layer.show(res)
+          })
+      }
+      // 如果会话消息为空,从接口取历史消息
+      if (!session.messageList || session.messageList.length == 0) {
+        await sessionChatList({
+          userid: this.sUserInfo.userid,
+          page: session.currMsgPage
+        })
+          .then(res => {
+            if (res.data.returncode == '0') {
+              console.log('消息列表', res.data.list)
+              // 消息收集
+              let msgs = []
+              res.data.list.reverse()
+              res.data.list.forEach((message, i) => {
+                message.fromHistory = true
+                message.isMine = message.fromid !== session.sesorigin.userid
+                let msg = new SessionMessage(message)
+                msgs.push(msg)
+              })
+              // 历史消息标签
+              if (msgs.length > 0) {
+                msgs.push({
+                  msgtype: 99,
+                  text: '以上为历史消息'
+                })
+              }
+              // 加载更多
+              if (session.currMsgPage < res.data.totalpage) {
+                msgs.splice(0, 0, {
+                  msgtype: 99,
+                  text: '加载更多',
+                  handleLoadHistory: true
+                })
+              }
+              // 更新当前会话的消息
+              session.messageList = msgs
+            } else {
+              this.$refs.layer.show(res.returnmsg)
+            }
+          })
+          .catch(res => {
+            this.$refs.layer.show(res)
+          })
+      }
+      // 更新会话列表
+      sessionList[index] = session
+      this.SET_SESSIONLIST({
+        sessionList: sessionList
+      })
+      // 把当前会话信息传递给外面使用
+      // this.$emit('updateCurSession', copy2(session))
+      // 如果地区为空,通过ip检索地区
+      // if (
+      //   item.sesorigin &&
+      //   item.sesorigin.ip &&
+      //   item.sesorigin.ip.indexOf('(') < 0
+      // ) {
+      // ip2area({ ip: item.sesorigin.ip })
+      //   .then(res => {
+      //     console.log('ip检索地区', res)
+      //     let session = copy(this.sessionInfo)
+      //     if (res.returncode == '0') {
+      //       session.sesorigin.ip =
+      //         session.sesorigin.ip +
+      //         '(' +
+      //         res.country +
+      //         res.province +
+      //         res.city +
+      //         ')'
+      //     } else {
+      //       session.sesorigin.ip = session.sesorigin.ip + '(未知地区)'
+      //     }
+      //     // 更新当前会话信息
+      //     this.SET_SESINFO({
+      //       sessionInfo: session
+      //     })
+      //   })
+      //   .catch(res => {
+      //     this.$refs.layer.show(res)
+      //   })
+      // }
+    },
+    // 监听同伴消息
+    listenNewFriendMsg() {
+      this.$wsBus.$on('2001', res => {
+        console.log('同伴消息', res)
+        if (res.returncode === '0') {
+          let friendList = copy2(this.friendList)
+          let newMsg = res.data
+          // 同伴消息标志,msgtype=1
+          if (res.data.msgtype != 1) {
+            return
+          }
+          // 原friendList不存在,就初始化friendList
+          if (!friendList) {
+            friendList = []
+            this.SET_FRIENDLIST({
+              friendList: []
+            })
+          }
+          // 消息对应的同伴是否存在
+          let oldFriend = friendList.find((oldFriend, oldI) => {
+            return newMsg.fromid == oldFriend.userid
+          })
+          let oldIndex = friendList.findIndex((oldFriend, oldI) => {
+            return newMsg.fromid == oldFriend.userid
+          })
+          // 消息对应的会话已存在,新增消息
+          if (oldFriend) {
+            // 新增消息
+            let addMessage = new FriendMessage(newMsg)
+            oldFriend.messageList.push(addMessage)
+            // 未读消息数量+1
+            if (!oldFriend.isSelected) {
+              oldFriend.unReadNum++
+            }
+            // 更新该会话的最新消息时间
+            oldFriend.timeline = ewMsg.timeline
+            oldFriend.updatetime = formatDate(newMsg.timeline, 'hh:mm:ss')
+            console.log('消息对应的会话已存在', oldIndex, oldFriend)
+            this.SET_EDITFRIEND({
+              index: oldIndex,
+              session: oldFriend
+            })
+          } else {
+            // 消息对应的同伴不存在,新增同伴/新增消息
+            // 新增同伴
+            let addFriend = new Friend({
+              userid: newMsg.fromid,
+              isSelected: false,
+              nickname: newMsg.nickname,
+              headurl: newMsg.headurl,
+              unReadNum: 1,
+              messageList: []
+            })
+            // 新增消息
+            let addMessage = new FriendMessage(newMsg)
+            // 同伴消息拼接
+            addFriend.messageList.push(addMessage)
+            console.log('消息对应的同伴不存在', addFriend)
+            // 新增同伴
+            this.SET_ADDFRIEND({
+              friend: addFriend
+            })
+          }
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 选中同伴
+    selseFriendChat(friend, index) {
+      let friendList = copy2(this.friendList)
+      friend = copy2(friend)
+      // 更新所有会话状态
+      friendList.forEach((e, i, arr) => {
+        e.isSelected = false
+      })
+      friend.isSelected = true
+      // 未读消息清空
+      friend.unReadNum = 0
+      // 切换聊天模式
+      this.SET_CHATTYPE({
+        chatType: FRIEND
+      })
+      // 更新同伴列表
+      friendList[index] = friend
+      this.SET_FRIENDLIST({
+        friendList: friendList
+      })
     },
     // 选中群聊
     selectGroupChat(item) {
@@ -384,7 +779,13 @@ export default {
       SET_CHATTYPE: 'SET_CHATTYPE',
       SET_GROUPINFO: 'SET_GROUPINFO',
       SET_SESSIONINFO: 'SET_SESSIONINFO',
-      SET_PRIVATEINFO: 'SET_PRIVATEINFO'
+      SET_PRIVATEINFO: 'SET_PRIVATEINFO',
+      SET_SESSIONLIST: 'SET_SESSIONLIST',
+      SET_EDITSESSION: 'SET_EDITSESSION',
+      SET_ADDSESSION: 'SET_ADDSESSION',
+      SET_FRIENDLIST: 'SET_FRIENDLIST',
+      SET_EDITFRIEND: 'SET_EDITFRIEND',
+      SET_ADDFRIEND: 'SET_ADDFRIEND'
     })
   },
   filters: {
@@ -396,7 +797,7 @@ export default {
       }
     },
     sessionStatus(data) {
-      if (data === 1) {
+      if (data == '0') {
         return '新接入会话'
       } else {
         return '会话已结束'
@@ -412,8 +813,10 @@ export default {
 <style lang='scss' scoped rel="stylesheet/scss">
 .wrap {
   flex: 1;
+  display: flex;
   border-right: 1px solid $border;
   background-color: $blank;
+  flex-direction: column;
 }
 .tab-box {
   display: flex;
@@ -433,6 +836,11 @@ export default {
     font-size: 14px;
     cursor: default;
   }
+}
+.tab-list{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .session-content {
   height: 100%;
@@ -551,13 +959,18 @@ export default {
     }
   }
 }
+.group-content{
+  display: flex;
+  flex-direction: column;
+}
 .group-content,
 .friend-content {
+  height: 100%;
   border-top: 1px solid $border;
+  overflow: auto;
   .group-chat-content {
     position: relative;
-    height: 230px;
-    overflow: auto;
+    height: 260px;
     .spinner {
       margin-top: 20px;
     }
@@ -567,22 +980,21 @@ export default {
     }
   }
   .private-chat-content {
+    height: 200px;
     position: relative;
-    .private-list {
-      height: 150px;
-      overflow: auto;
-    }
+    overflow: auto;
     .unread {
       margin-top: -15px;
       margin-left: 25px;
     }
   }
   .friend-list {
-    height: 560px;
+    height: 100%;
     border-bottom: 1px solid $border;
     overflow: auto;
   }
   .at-chat-content {
+    flex: 1;
     border-bottom: 1px solid $border;
     .noData {
       width: 100%;

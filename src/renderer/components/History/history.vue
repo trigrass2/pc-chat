@@ -2,27 +2,31 @@
   <div class="wrap">
     <div class="side-bar">
       <div class="search-box">
-        <input type="text" v-model="searchText" placeholder="请输入您要搜索的内容">
-        <img src="./delete.png" width="18px" height="18px" @click="clearText">
-        <div class="btn" @click="search">查询</div>
+        <input type="text" v-model="keywords" placeholder="请输入您要搜索的内容" />
+        <img src="./img/delete.png" width="18px" height="18px" @click="clearText" />
+        <div class="btn" @click="getHistory">查询</div>
       </div>
       <div class="bar-list">
-        <div class="bar" v-for="(item, index) in barList" :key="item.id">
-          <div class="head" @click="showList(item)">
-            <div :class="[item.show ? 'selected': '', 'type']">
-              <img src="./arrow_r.png">
-              <span>{{item.name}}</span>
+        <div class="bar" v-for="(bar, barIndex) in barList" :key="bar.id">
+          <div class="head" @click="showList(bar)">
+            <div :class="[bar.show ? 'selected': '', 'type']">
+              <img src="./img/arrow_r.png" />
+              <span>{{bar.name}}</span>
             </div>
-            <div class="number">{{item.number}}</div>
+            <div class="number">{{bar.number}}</div>
           </div>
           <transition name="slide">
-            <ul class="con" v-if="item.show">
-              <template v-if="item.subList.length !== 0">
-                <li v-for="(value, index) in item.subList" :key="value.id">
-                  <span class="name">{{value.name}}</span>
+            <ul class="con" v-show="bar.show">
+              <template v-if="bar.subList.length > 0">
+                <li :class="[sub.isSelected ? 'selected': '']" v-for="(sub, subIndex) in bar.subList" :key="sub.id" @click="loadHistory(sub)">
+                  <span class="name" v-if="sub.sesid">会话:{{sub.sesid}} {{sub.nickname || "未知会话"}}</span>
+                  <span
+                    class="name"
+                    v-else
+                  >{{sub.friendname || sub.privatename || sub.teamname || "未知会话"}}</span>
                   <div class="right">
-                    <div class="number">{{value.number}}</div>
-                    <img src="./arrow_r.png">
+                    <div class="number">{{sub.c}}</div>
+                    <img src="./img/arrow_r.png" />
                   </div>
                 </li>
               </template>
@@ -32,172 +36,232 @@
         </div>
       </div>
     </div>
-		<div class="container">
-			<ul class="content">
-				<li v-for="(item, index) in contentList" :key="item.id">
-					<div class="title">
-						<div class="time">{{item.time}}</div>
-						<div class="name">{{item.from}}</div>
-					</div>
-					<div class="con">{{item.content}}</div>
-				</li>
-			</ul>
-		</div>
+    <div class="container">
+      <ul class="content">
+        <li v-for="(item, index) in contentList" :key="item.msgid">
+          <div class="title">
+            <div class="time">{{item.timeline | format}}</div>
+            <div class="name">{{item.fromname}}</div>
+          </div>
+          <div class="con" style="word-wrap:break-word" v-html="showMsgDataHandler(item)"></div>
+        </li>
+      </ul>
+    </div>
+    <layer-content ref="layer"></layer-content>
   </div>
 </template>
 
 <script>
+import {
+  historyList,
+  sessionHistory,
+  teamHistory,
+  friendHistory,
+  privateHistory
+} from 'api/http/sessionChat'
+import { copy, copy2, faceImgMap, isJson, formatDate } from 'common/js/util'
+import { msgDataHandler } from 'common/js/business'
+
 export default {
   data() {
     return {
       // 搜索内容
-      searchText: "",
+      keywords: '',
       // content列表
-      contentList: [
-        {
-          id: 1,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 2,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 3,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 4,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-				},
-				{
-          id: 5,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 6,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 7,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        },
-        {
-          id: 8,
-          time: "2019-06-13 11:02:14",
-          from: "小王",
-          content:
-            "啊实打实大师的念念阿斯顿撒阿斯顿啊撒阿斯顿撒的撒的撒的不舍的内分泌你的生命的什么饭你的模式农夫说的那么方便迪士尼"
-        }
-      ],
+      contentList: [],
       // bar列表
       barList: [
         {
           id: 1,
-          name: "咨询历史",
+          name: '咨询历史',
           number: 5,
           show: false,
-          subList: [
-            {
-              id: 1,
-              name: "哈哈哈哈哈",
-              number: 5
-            },
-            {
-              id: 2,
-              name: "哈哈哈哈哈",
-              number: 5
-            },
-            {
-              id: 3,
-              name: "哈哈哈哈哈",
-              number: 5
-            }
-          ]
+          subList: []
         },
         {
           id: 2,
-          name: "群组",
+          name: '群组',
           number: 5,
           show: false,
-          subList: [
-            {
-              id: 1,
-              name: "哈哈哈哈哈",
-              number: 5
-            }
-          ]
+          subList: []
         },
         {
           id: 3,
-          name: "同伴",
+          name: '同伴',
           number: 5,
           show: false,
-          subList: [
-            {
-              id: 1,
-              name: "哈哈哈哈哈",
-              number: 5
-            },
-            {
-              id: 2,
-              name: "哈哈哈哈哈",
-              number: 5
-            }
-          ]
+          subList: []
         },
         {
           id: 4,
-          name: "私聊",
+          name: '私聊',
           number: 5,
           show: false,
           subList: []
         }
       ]
-    };
+    }
   },
-
+  created() {
+    // 获取历史列表
+    this.getHistory()
+  },
   methods: {
-    // 搜索
-    search() {},
+    // 获取历史tab列表
+    getHistory() {
+      this.contentList = []
+      historyList({ keywords: this.keywords }).then(res => {
+        if (res.data.returncode == 0) {
+          this.addItem(res.data.sessionList, 0)
+          this.addItem(res.data.teamList, 1)
+          this.addItem(res.data.friendList, 2)
+          this.addItem(res.data.privateList, 3)
+        } else {
+          this.$refs.layer.show(res.data.message)
+        }
+    })
+    .catch(res => {
+        this.$refs.layer.show(res)
+      })
+    },
+    // 增加tab子列表
+    addItem(list, index) {
+      this.barList[index].subList = []
+      let id = 0
+      list.forEach((e, i, arr) => {
+        id++
+        e.id = id
+        e.isSelected = false
+        this.barList[index].subList.push(e)
+        this.barList[index].number = list.length || 0
+      })
+    },
+    // 加载历史消息
+    loadHistory(item) {
+      item.keywords = this.keywords
+      // 选中样式
+      this.barList.forEach((tab) => {
+        tab.subList.forEach((sub) => {
+          sub.isSelected = false
+        })
+      })
+      item.isSelected = true
+      console.log(item)
+      // 请求消息数据
+      if (item.sesid) {
+        this.getSessionHistory(item)
+      }
+      if (item.friendid) {
+        this.getFriendHistory(item)
+      }
+      if (item.privateid) {
+        this.getPrivateHistory(item)
+      }
+      if (item.teamid) {
+        this.getTeamHistory(item)
+      }
+    },
+    // 会话历史消息
+    getSessionHistory(data) {
+      sessionHistory(data)
+        .then(res => {
+          if (res.data.returncode == '0') {
+            // console.log(res)
+            this.contentList = res.data.list
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 群历史消息
+    getTeamHistory(data) {
+      teamHistory(data)
+        .then(res => {
+          // console.log(res)
+          if (res.data.returncode == '0') {
+            this.contentList = res.data.list
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 同伴历史消息
+    getFriendHistory(data) {
+      friendHistory(data)
+        .then(res => {
+          // console.log(res)
+          if (res.data.returncode == '0') {
+            this.contentList = res.data.list
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 私聊历史消息
+    getPrivateHistory(data) {
+      privateHistory(data)
+        .then(res => {
+          if (res.data.returncode == '0') {
+            // 安卓消息格式处理
+            res.data.list.forEach((e, i, arr) => {
+              let isjson = isJson(e.msgbody)
+              //   安卓发的是json格式 {msgtext, teamid, teamname}
+              if (isjson) {
+                let msgbody = JSON.parse(e.msgbody)
+                e.msgbody = msgbody.msgtext
+              }
+            })
+            this.contentList = res.data.list
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 处理消息内容
+    showMsgDataHandler(data) {
+      // console.log(data)
+      let result = msgDataHandler(data)
+      // console.log(result)
+      return result
+    },
     // 清除搜索内容
     clearText() {
-      this.searchText = "";
+      this.contentList = []
+      this.keywords = ''
     },
     showList(item) {
-      item.show = !item.show;
+      item.show = !item.show
+    }
+  },
+  filters: {
+    format(date) {
+      return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
     }
   }
-};
+}
 </script>
 <style lang='scss' rel="stylesheet/scss" scoped>
-.wrap{
-	display: flex;
+.wrap {
+  display: flex;
+  height: 100%;
 }
 .side-bar {
+  display: flex;
+  flex-direction: column;
   width: 250px;
-  height: 650px;
+  height: 100%;
   border: 1px solid $border;
   border-right: 1px solid $border;
   background-color: $blank;
@@ -238,6 +302,8 @@ export default {
   }
 }
 .bar-list {
+  flex: 1;
+  overflow: scroll;
   .bar {
     cursor: pointer;
     .head {
@@ -278,13 +344,13 @@ export default {
         }
       }
       .number {
-        width: 20px;
-        height: 20px;
+        width: 25px;
+        height: 25px;
         border-radius: 50%;
         color: #fff;
         background-color: $red;
         text-align: center;
-        line-height: 20px;
+        line-height: 25px;
       }
     }
     .con {
@@ -296,6 +362,9 @@ export default {
         font-size: 14px;
         cursor: default;
       }
+      .selected {
+         background-color: $listHover !important;
+      }
       li {
         width: 100%;
         height: 30px;
@@ -303,9 +372,9 @@ export default {
         align-items: center;
         justify-content: space-between;
         padding: 0 10px 0 20px;
-				background-color: $blank;
+        background-color: $blank;
         &:hover {
-          background-color: $listHover;
+          background-color: $listLightHover;
         }
         .name {
           font-size: 12px;
@@ -326,32 +395,32 @@ export default {
     }
   }
 }
-.container{
-	height: 650px;
-	overflow: auto;
-	flex: 1;
-	.content{
-		padding: 20px;
-		li{
-			background-color: #fff;
-			padding: 20px 10px;
-			margin-bottom: 10px;
-			.title{
-				display: flex;
-				align-items: center;
-				font-size: 12px;
-				margin-bottom: 10px;
-				font-weight: bold;
-				.name{
-					color: $primary;
-					margin-left: 10px;
-				}
-			}
-			.con{
-				font-size: 12px;
-			}
-		}
-	}
+.container {
+  height: 650px;
+  overflow: auto;
+  flex: 1;
+  .content {
+    padding: 20px;
+    li {
+      background-color: #fff;
+      padding: 20px 10px;
+      margin-bottom: 10px;
+      .title {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        .name {
+          color: $primary;
+          margin-left: 10px;
+        }
+      }
+      .con {
+        font-size: 12px;
+      }
+    }
+  }
 }
 
 .slide-enter,

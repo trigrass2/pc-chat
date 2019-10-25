@@ -1,9 +1,14 @@
 export class Socket {
   constructor(url) {
-  	this.ws = new WebSocket(url)
+		this.ws = new WebSocket(url)
+		//检查是否支持websocket
+		if(!window.WebSocket){
+			throw "websocket not support";
+		}
   	this.onError()
   	this.onClose()
-  }
+	}
+	
   send(data) {
   	this.waitForConnection(() => {
   	  this.ws.send(JSON.stringify(data))

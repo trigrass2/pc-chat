@@ -64,6 +64,7 @@ export default {
       reader.onloadend = function() {
         imgUploader(this.result)
           .then(res => {
+            console.log(res)
             if (res.data.returncode === '0') {
               // 文件上传成功
               vm.$emit('uploadSuccess', res.data.data)

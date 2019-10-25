@@ -3,24 +3,26 @@
     <div class="chat-con">
       <div class="chat-title">
         <!-- 会话头部栏 -->
-        <div class="session-chat-title" v-show="chatType === 1">
+        <div class="title" v-show="chatType === 1 && sessionInfo">
           <div class="name">
-            <span>GR000115601</span>
-            <span class="tag" @click="xixi">咨询</span>
+            <span>{{sessionInfo && sessionInfo.nickname}}</span>
+            <span
+              class="tag"
+            >{{sessionInfo && sessionInfo.sesorigin && sessionInfo.sesorigin.categoryname}}</span>
           </div>
           <div class="detail">
-            创建于：
-            <span>2019-05-21</span>
+            真实姓名:
+            <span>{{sessionInfo && sessionInfo.realinfo && sessionInfo.realinfo.name}}</span>
             手机号：
-            <span>17826894060</span>
+            <span>{{sessionInfo && sessionInfo.realinfo && sessionInfo.realinfo.mobile}}</span>
             渠道：
-            <span>PC浏览器</span>
+            <span>{{sessionInfo && sessionInfo.terminal | transTerminal}}</span>
             IP：
-            <span class="more">更多信息..</span>
+            <span>{{sessionInfo && sessionInfo.sesorigin && sessionInfo.sesorigin.ip}}</span>
           </div>
         </div>
         <!-- 群聊头部栏 -->
-        <div class="group-chat-title" v-show="chatType === 2">
+        <div class="title" v-show="chatType === 2 && groupInfo">
           <div class="name">
             <span>{{groupInfo && groupInfo.teamname}}</span>
             <span class="tag">{{groupInfo && groupInfo.teamTypeName}}</span>
@@ -31,16 +33,16 @@
           </div>
         </div>
         <!-- 同伴头部栏 -->
-        <div class="friend-chat-title" v-show="chatType === 4">
+        <div class="title" v-show="chatType === 4">
           <div class="name">
-            <span>zjy001</span>
+            <span>{{friendInfo && friendInfo.nickname}}</span>
           </div>
           <div class="detail">
             <span>内部对话</span>
           </div>
         </div>
         <!-- 私聊头部栏 -->
-        <div class="privte-chat-title" v-show="chatType === 3">
+        <div class="title" v-show="chatType === 3 && privateInfo">
           <div class="name">
             <span>{{privateInfo && privateInfo.name}}</span>
           </div>
@@ -51,11 +53,17 @@
         <!-- <div class="load-more" v-show="msgData.hasMoreMsg" @click="moreMsg">加载更多</div> -->
         <ul v-if="msgData && msgData.length > 0">
           <template v-for="(item, index) in msgData">
-            <!-- 撤回的消息 -->
-            <template v-if="item.recall === '1'">
+            <!-- 系统的消息 -->
+            <template v-if="item.msgtype && item.msgtype == '99'">
+              <div class="sysmsg" @click="loadMoreHistory(item)">
+                <div class="time">{{item.createtime}}</div>
+                <div class="text">{{item.text}}</div>
+              </div>
+            </template>
+            <template v-else-if="item.recall === '1' || item.isback">
               <li class="recall">
                 <div class="time">{{item.sendTime}}</div>
-                <div class="text" v-if="item.fromid === userInfo.userId">你撤回了一条消息</div>
+                <div class="text" v-if="item.fromid === gUserInfo.userId || item.isMine">你撤回了一条消息</div>
                 <div class="text" v-else>{{item.nickname}}撤回了一条消息</div>
               </li>
             </template>
@@ -96,15 +104,19 @@
             <!-- 文本表情 -->
             <template v-else>
               <!-- 我的消息 -->
-              <li class="my" v-if="item.fromid === userInfo.userId">
+              <li class="my" v-if="item.fromid === gUserInfo.userId || item.isMine">
                 <div class="con-wrap">
-                  <div class="title">
+                  <div class="title" v-if="chatType !== 1 && chatType !== 4">
                     <span class="time">{{item.sendTime}}</span>
                     <span class="name">{{item.nickname}}</span>
                   </div>
                   <div class="con">
                     <div class="content" @click.right="openMenu(item, 1)">
-                      <div @click="imgPreview($event)" style="word-wrap:break-word" v-html="msgDataHandler(item)"></div>
+                      <div
+                        @click="imgPreview($event)"
+                        style="word-wrap:break-word"
+                        v-html="showMsgDataHandler(item)"
+                      ></div>
                       <span class="arrow"></span>
                     </div>
                     <img class="head" :src="item.headurl" />
@@ -114,14 +126,23 @@
               <!-- 别人的消息 -->
               <li class="other" v-else>
                 <div class="con-wrap">
-                  <div class="title">
+                  <div class="title" v-if="chatType !== 1 && chatType !== 4">
                     <span class="name">{{item.nickname}}</span>
                     <span class="time">{{item.sendTime}}</span>
                   </div>
                   <div class="con">
-                    <img class="head" :src="item.headurl" />
+                    <img
+                      v-if="chatType == 1"
+                      class="head"
+                      :src="item.headurl ? item.headurl : require('./img/noface.gif')"
+                    />
+                    <img v-else class="head" :src="item.headurl" />
                     <div class="content" @click.right="openMenu(item, 0)">
-                      <div @click="imgPreview($event)" style="word-wrap:break-word" v-html="msgDataHandler(item)"></div>
+                      <div
+                        @click="imgPreview($event)"
+                        style="word-wrap:break-word"
+                        v-html="showMsgDataHandler(item)"
+                      ></div>
                       <span class="arrow"></span>
                     </div>
                   </div>
@@ -152,8 +173,17 @@
 <script>
 import { remote } from 'electron'
 import { mapMutations, mapGetters } from 'vuex'
-import { copy, faceImgMap, isJson } from 'common/js/util'
+import { copy, copy2, faceImgMap, isJson } from 'common/js/util'
+import { msgDataHandler } from 'common/js/business'
 import { GROUPAPI } from 'api/http/groupChat'
+import Session from 'common/js/session.js'
+import Message from 'common/js/message.js'
+import {
+  sessionList,
+  ip2area,
+  realInfo,
+  sessionChatList
+} from 'api/http/sessionChat'
 
 // const SESSION = 3;
 const MyMessage = 1
@@ -162,14 +192,10 @@ const MenuItem = remote.MenuItem
 const SESSION = 1
 const GROUP = 2
 const PRIVATE = 3
+const FRIEND = 4
 
 export default {
   props: {
-    // 最新消息
-    // msgLast: {
-    //   type: Object,
-    //   default: null
-    // },
     // 当前群信息
     groupInfo: {
       type: Object,
@@ -202,6 +228,8 @@ export default {
   },
   data() {
     return {
+      sessionInfo: null,
+      friendInfo: null,
       // 请求撤回参数
       recallParams: {
         msgid: '', // 消息id
@@ -209,17 +237,7 @@ export default {
         fromid: '', // 发送者id
         recall: '1' // 是否撤回(1是/0否)
       },
-      // 测试 当前群聊信息
-      //   groupInfo: {
-      //     teamname: '群聊名字',
-      //     teamTypeName: '群类型',
-      //     createDate: '2019-09-12'
-      //   },
-      // 测试 本人信息
-      //   user: {
-      //     id: '1'
-      //   },
-      //   要展示的消息
+      // 要展示的消息
       msgData: null,
       sessionData: {
         hasMoreMsg: true
@@ -232,8 +250,6 @@ export default {
       },
       // 当前右键的消息
       clickRightMsg: '',
-      // 当前聊天类型
-      // chatType: SESSION,
       // 是否有更多的消息
       hasMoreMsg: true,
       nini: '13123',
@@ -266,26 +282,6 @@ export default {
         //   }
         // ]
       }
-      // messageList: [
-      //   {
-      //     id: 1,
-      //     time: "2019-07-09 12:00:00",
-      //     fromid: "1",
-      //     fromName: "小王",
-      //     content: "大家好！我是小王,请多多关照关照。",
-      //     isRecall: false,
-      //     isDelete: false
-      //   },
-      //   {
-      //     id: 2,
-      //     time: "2019-07-09 12:00:00",
-      //     fromid: "2",
-      //     fromName: "小李",
-      //     content: "大家好！我是小李,请多多关照关照。",
-      //     isRecall: false,
-      //     isDelete: false
-      //   }
-      // ]
     }
   },
   computed: {
@@ -299,17 +295,20 @@ export default {
         return this.privateImg
       }
     },
-    // 表情是否显示  当前聊天类型  会话聊天内容  群聊聊天内容  私聊聊天内容  当前用户信息
+    // 表情是否显示  当前聊天类型  会话聊天内容  群聊聊天内容  私聊聊天内容  当前用户信息  会话对象信息  同伴列表  会话登录信息
     ...mapGetters([
       'groupInfoShow',
       'chatType',
-      'sessionMsgList',
+      // 'sessionMsgList',
       //   'groupMsgList',
       //   'privateMsgList',
       'sessionImg',
       'groupImg',
       'privateImg',
-      'userInfo'
+      'gUserInfo',
+      'sessionList',
+      'friendList',
+      'sUserInfo'
     ])
   },
   created() {
@@ -319,30 +318,57 @@ export default {
   watch: {
     chatType: 'msgHandler',
     groupMsgList: 'msgHandler',
-    privateMsgList: 'msgHandler'
-  },
-  mounted() {
-    // console.log(this.sessionMsgList)
+    privateMsgList: 'msgHandler',
+    sessionList: {
+      handler (newV) {
+        if (this.sessionList) {
+          this.sessionInfo = copy2(this.sessionList.find((e, i, arr) => {
+            return e.isSelected 
+          })) || null
+          console.log('有反应了')
+        } else {
+          this.sessionInfo = null
+        }
+        this.msgHandler()
+      },
+      deep: true
+    },
+    friendList: {
+      handler (newV) {
+        if (this.friendList) {
+          this.friendInfo = copy2(this.friendList.find((e, i, arr) => {
+            return e.isSelected 
+          })) || null
+          console.log('有反应了')
+        } else {
+          this.friendInfo = null
+        }
+        this.msgHandler()
+      },
+      deep: true
+    }
   },
   methods: {
     // 消息处理
     msgHandler() {
-      console.log('消息处理', this.chatType)
+      // 会话
       if (this.chatType === SESSION) {
-        this.msgData = this.sessionMsgList
-        // console.log('现在是会话', JSON.stringify(this.msgData))
-        // msgData.hasMoreMsg = false
+        // 若当前会话存在，就去取消息列表，否则初始化为空数组
+        if (this.sessionInfo) {
+          var sessionMsgList = this.sessionInfo.messageList
+        }
+        if (!sessionMsgList || sessionMsgList.length === 0) {
+          this.msgData = []
+          return false
+        }
+        this.msgData = sessionMsgList
+      // 群聊
       } else if (this.chatType === GROUP) {
-        // console.log('消息处理进来1')
-        // 得到当前群的最新群消息
+        // 若群消息列表存在，通过群成员列表完善信息，否则初始化为空数组
         if (!this.groupMsgList || this.groupMsgList.length === 0) {
           this.msgData = []
           return false
         }
-        // console.log('消息处理进来2', this.groupMsgList)
-        // this.msgData = this.groupMsgList.filter((e, i, arr) => {
-        //   return Number(e.id) === Number(this.groupInfo.teamid)
-        // })
         this.groupMsgList.forEach((e, i, arr) => {
           this.groupMembers.forEach((em, im, arrm) => {
             if (e.fromid === em.memberid) {
@@ -352,9 +378,9 @@ export default {
           })
         })
         this.msgData = this.groupMsgList
-        // console.log('现在是群聊', JSON.stringify(this.msgData))
-        // msgData.hasMoreMsg = false
+      // 私聊
       } else if (this.chatType === PRIVATE) {
+        // 若私聊列表存在，处理安卓消息格式，否则初始化空数组
         if (!this.privateMsgList || this.privateMsgList.length === 0) {
           this.msgData = []
           return false
@@ -369,15 +395,77 @@ export default {
           if (e.formatdate) {
             e.sendTime = e.formatdate
           }
-          console.log('哈哈哈', e.msgbody, e)
         })
         this.msgData = this.privateMsgList
-        console.log('现在是私聊', this.msgData)
-        // msgData.hasMoreMsg = false
+      // 同伴
+      } else if (this.chatType === FRIEND) {
+        // 若当前同伴存在，就去取消息列表，否则初始化为空数组
+        if (this.friendInfo) {
+          var friendMsgList = this.friendInfo.messageList
+        }
+        if (!friendMsgList || friendMsgList.length === 0) {
+          this.msgData = []
+          return false
+        }
+        this.msgData = friendMsgList
       }
     },
-    // 加载更多消息
-    moreMsg() {},
+    // 处理消息内容
+    showMsgDataHandler(data) {
+      let result = msgDataHandler(data)
+      setTimeout(() => {
+        this.scrollToBottom()
+      }, 20)
+      return result
+    },
+    // 会话加载更多历史消息
+    loadMoreHistory(item) {
+      if (item.handleLoadHistory) {
+        var newPage = this.sessionInfo.currMsgPage + 1
+        sessionChatList({
+          userid: this.sUserInfo.userid,
+          page: newPage
+        })
+          .then(res => {
+            if (res.data.returncode == '0') {
+              let sessionInfo = copy2(this.sessionInfo)
+              let oldMsgList = sessionInfo.messageList
+              // 历史消息收集
+              res.data.list.forEach((newMsg, i) => {
+                // 新增消息
+                newMsg.isMine =
+                  newMsg.fromid !== sessionInfo.sesorigin.userid
+                newMsg.fromHistory = true
+                let msg = new Message(newMsg)
+                oldMsgList.splice(1, 0, msg)
+              })
+              // 是否还有历史消息判断
+              if (newPage == res.data.totalpage) {
+                oldMsgList.splice(0, 1, {
+                  msgtype: 99,
+                  text: '没有更多了'
+                })
+              }
+              // 更新当前会话信息
+              sessionInfo.currMsgPage = newPage
+              let sessionList = copy2(this.sessionList)
+              let index = this.sessionList.findIndex((e, i, arr) => {
+                return sessionInfo.sesid == e.sesid
+              })
+              sessionList[index] = sessionInfo
+              // 更新会话列表
+              this.SET_SESSIONLIST({
+                sessionList: sessionList
+              })
+            } else {
+              this.$refs.layer.show(res.returnmsg)
+            }
+          })
+          .catch(res => {
+            this.$refs.layer.show(res)
+          })
+      }
+    },
     // 初始化图片预览
     inited(viewer) {
       this.$viewer = viewer
@@ -397,30 +485,6 @@ export default {
         this.$viewer.view(curIndex)
       }
     },
-    xixi() {
-      // 会话
-      let message = {
-        id: 100,
-        time: '2019-07-09 12:00:00',
-        fromid: '1',
-        fromName: '小王',
-        content: '哈哈',
-        isRecall: false,
-        isDelete: false
-      }
-      let newMessage = []
-      newMessage.push(message)
-      this.SET_SESSION_MSG({
-        sessionMsgList: newMessage
-      })
-      // this.SET_SESSION_MSG({});
-    },
-    // 加载更多会话消息
-    moreMsgSession() {},
-    // 加载更多群聊消息
-    moreMsgGroup() {},
-    // 加载更多私聊消息
-    moreMsgPrivate() {},
     // 初始化右键菜单
     initMenu() {
       this.menu_my = new Menu()
@@ -448,7 +512,7 @@ export default {
       console.log('撤回消息id', id)
       this.recallParams.msgid = id
       this.recallParams.toid = this.groupInfo.teamid
-      this.recallParams.fromid = this.userInfo.userId
+      this.recallParams.fromid = this.gUserInfo.userId
       GROUPAPI.gMsgRecall(this.recallParams)
         .then(res => {
           if (res.data.code === '0000') {
@@ -475,65 +539,6 @@ export default {
         groupInfoShow: !this.groupInfoShow
       })
     },
-    // 消息数据处理
-    msgDataHandler(data) {
-      console.log('消息数据处理', data)
-      var newMsg = copy(data)
-      // 文本表情——表情字符串替换为图片img节点
-      if (newMsg.mediatype === 1 || newMsg.mediatype === 0) {
-        var regex = /\[(.+?)\]/g
-        var result
-        // console.log('消息处理中——文本', newMsg)
-        while ((result = regex.exec(newMsg.msgbody)) !== null) {
-          //   console.log(newMsg.content)
-          let imgIndex = faceImgMap.findIndex((e, i, arr) => {
-            return e === result[0]
-          })
-          //   console.log('表情index', imgIndex)
-          if (imgIndex !== -1) {
-            var src = require('common/img/' + Number(imgIndex + 1) + '.png')
-          }
-          //   let src = result[0].substr(2, result[0].length - 3)
-          //   src = require('common/img/' + src + '.png')
-          let faceImgHtml = `<img src='${src}' width='15px' height='15px' style="margin-top: 4px;"></img>`
-          if (newMsg.content) {
-            newMsg.content = newMsg.content.replace(result[0], faceImgHtml)
-          } else {
-            newMsg.content = newMsg.msgbody.replace(result[0], faceImgHtml)
-          }
-        }
-        // console.log('qwewqe', newMsg.content)
-        if (!newMsg.content) {
-          newMsg.content = newMsg.msgbody
-        }
-        // console.log('ewwwwww', newMsg.content)
-        // 图片
-      } else if (newMsg.mediatype === 3) {
-        // scale: Width/height
-        // if (newMsg.scale) {
-        //   var scale = newMsg.scale
-        //   var width = 100 * scale
-        // } else {
-        //   width = 100
-        // }
-        // // width最大500px
-        // if (width > 500) {
-        //   width = 500
-        // }
-        // 图片 替换为图片img节点
-        // console.log('消息处理中——图片', newMsg)
-        newMsg.content = `<img class='capture' src='${newMsg.msgbody}' style="background-size: contain; width: 100px; height:100px;"></img>`
-      } else if (newMsg.mediatype === 5) {
-        newMsg.content = '我是图文'
-      }
-      // console.log(newMsg)
-      setTimeout(() => {
-        // console.log(123)
-        this.scrollToBottom()
-      }, 20)
-      //   console.log('这里是处理好的消息：', newMsg.content)
-      return newMsg.content
-    },
     // 滚动到底部
     scrollToBottom() {
       //   console.log(this.$refs.msgcon.scrollTop, this.$refs.msgcon.scrollHeight)
@@ -541,17 +546,54 @@ export default {
     },
     ...mapMutations({
       SET_GROUPINFO: 'SET_GROUPINFO',
-      SET_SESSION_MSG: 'SET_SESSION_MSG'
+      SET_SESSION_MSG: 'SET_SESSION_MSG',
+      SET_SESMSGLIST: 'SET_SESMSGLIST',
+      SET_SESMSGPAGE: 'SET_SESMSGPAGE',
+      SET_SESSIONLIST: 'SET_SESSIONLIST',
+      SET_FRIENDLIST: 'SET_FRIENDLIST'
     })
+  },
+  filters: {
+    transTerminal: function(tname) {
+      let str
+      switch (tname) {
+        case '1':
+          str = 'iOS'
+          break
+        case '2':
+          str = 'android'
+          break
+        case '3':
+          str = 'PC客服'
+          break
+        case '4':
+          str = 'PC浏览器'
+          break
+        case '5':
+          str = '微信'
+          break
+        case '6':
+          str = '手机浏览器-iOS'
+          break
+        case '7':
+          str = '手机浏览器-android'
+          break
+        default:
+          str = '未知'
+      }
+      return str
+    }
   }
 }
 </script>
 <style lang='scss' scoped>
 .wrap {
-  height: 100%;
+  flex: 1;
   display: flex;
 
   .chat-con {
+    display: flex;
+    flex-direction: column;
     width: 100%;
   }
 }
@@ -559,11 +601,12 @@ export default {
 .chat-title {
   // width: 66%;
   width: 100%;
-  height: 57px;
-  padding: 6px 20px;
   border-bottom: 1px solid $border;
   background-color: $blank;
-
+  .title{
+    height: 57px;
+    padding: 6px 20px;
+  }
   .tag {
     height: 30px;
     text-align: center;
@@ -599,12 +642,12 @@ export default {
 
 .chat-content {
   width: 100%;
-  height: 100%;
+  flex: 1;
   position: relative;
   background-color: $listHover;
   border-bottom: 1px solid $border;
   overflow: auto;
-  padding-bottom: 308px;
+  padding-top: 10px;
 
   .go-group {
     position: absolute;
@@ -644,7 +687,8 @@ export default {
 
   ul {
     .recall,
-    .delete {
+    .delete,
+    .sysmsg {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -659,7 +703,7 @@ export default {
         text-align: center;
         font-size: 12px;
         padding: 6px;
-        margin: 10px auto;
+        margin: 14px auto;
         border-radius: 5px;
         cursor: default;
       }

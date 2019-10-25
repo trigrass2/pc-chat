@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Router from 'vue-router'
+import store from '../store'
 
 Vue.use(Router)
 
@@ -70,8 +71,22 @@ const router = new Router({
     }
   ]
 })
+
+// // 路由加载完成前
+// router.beforeEach((to, from, next) => {
+//   console.log('哈哈哈')
+//   store.commit('loading', {
+//     loading: true
+//   })
+//   next()
+// })
+
 // 路由加载完成后
 router.afterEach(to => {
+  console.log('嘻嘻嘻')
+  // store.commit('loading', {
+  //   loading: false
+  // })
   document.title = to.meta.title
   window.scrollTo(0, 0)
 })

@@ -2,33 +2,36 @@
   <div class="wrap">
     <div class="info">
       昵称：
-      <span>{{info.nickname | isNull}}</span>
+      <span>{{sUserInfo.nickname | isNull}}</span>
     </div>
     <div class="info">
       姓名：
-      <span>{{info.realname | isNull}}</span>
+      <span>{{sUserInfo.realname | isNull}}</span>
     </div>
     <div class="info">
       手机：
-      <span>{{info.mobilekey | isNull}}</span>
+      <span>{{sUserInfo.mobilekey | isNull}}</span>
     </div>
     <div class="info">
       邮箱：
-      <span>{{info.email | isNull }}</span>
+      <span>{{sUserInfo.email | isNull }}</span>
     </div>
     <div class="info">
       分组：
-      <span>{{info.group | isNull}}</span>
+      <span>{{sUserInfo.group | isNull}}</span>
     </div>
     <div class="info">
       职务：
-      <span>{{info.zw | isNull}}</span>
+      <span>{{sUserInfo.zw | isNull}}</span>
     </div>
   </div>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
+
 export default {
+  
   data() {
     return {
       info: {
@@ -41,7 +44,12 @@ export default {
       }
     };
   },
-
+  computed: {
+    // 用户信息
+    ...mapGetters([
+      'sUserInfo'
+    ])
+  },
   methods: {},
   filters: {
     isNull(data) {

@@ -87,8 +87,8 @@ if (process.env.NODE_ENV !== 'development') {
 
 // 初始化窗口
 function init() {
-    // loginWin = NewWindow({ height: 560, width: 380 }, 'login')
-    mainWin = NewWindow({ width: 1000, height: 650 }, 'main')
+    loginWin = NewWindow({ height: 560, width: 380 }, 'login')
+    // mainWin = NewWindow({ width: 1000, height: 650 }, 'main')
     // loginWin = NewWindow({ width: 600, height: 450 }, 'setting')
 
     // 注册快捷键
