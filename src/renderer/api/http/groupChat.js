@@ -1,6 +1,8 @@
-import { request, url } from 'api/http/config'
+import { request, testUrl } from 'api/http/config'
 import axios from 'axios'
 import { formData } from './config'
+let groupUrl = testUrl.groupChat
+let kxUrl = testUrl.webkx
 
 // 接口方法映射
 const _groupApi = {}
@@ -41,7 +43,7 @@ function addGroupApi() {
       } else {
         var reqData = request(data, val)
       }
-      return axios.post(url, reqData).then(res => {
+      return axios.post(groupUrl, reqData).then(res => {
         return Promise.resolve(res)
       })
     }
@@ -53,7 +55,7 @@ export const GROUPAPI = _groupApi
 
 export function imgUploader(file) {
     // const url = '/webkx/file/uploadImage.php'
-    const url = '/webkx/file/uploadBase64Image.php?isAjax=' + Math.random()
+    const url = `${kxUrl}/webkx/file/uploadBase64Image.php?isAjax=` + Math.random()
     // console.log('图片文件', file)
     let _data = {
         base64: file

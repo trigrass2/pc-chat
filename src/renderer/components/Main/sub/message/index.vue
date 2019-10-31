@@ -49,46 +49,47 @@
         </div>
       </div>
       <!-- 消息内容展示 -->
-      <div class="chat-content" ref="msgcon">
+      <div class="chat-content">
         <!-- <div class="load-more" v-show="msgData.hasMoreMsg" @click="moreMsg">加载更多</div> -->
-        <ul v-if="msgData && msgData.length > 0">
-          <template v-for="(item, index) in msgData">
-            <!-- 系统的消息 -->
-            <template v-if="item.msgtype && item.msgtype == '99'">
-              <div class="sysmsg" @click="loadMoreHistory(item)">
-                <div class="time">{{item.createtime}}</div>
-                <div class="text">{{item.text}}</div>
-              </div>
-            </template>
-            <template v-else-if="item.recall === '1' || item.isback">
-              <li class="recall">
-                <div class="time">{{item.sendTime}}</div>
-                <div class="text" v-if="item.fromid === gUserInfo.userId || item.isMine">你撤回了一条消息</div>
-                <div class="text" v-else>{{item.nickname}}撤回了一条消息</div>
-              </li>
-            </template>
-            <!-- 删除的消息 -->
-            <!-- <template v-else-if="item.isDelete">
+        <div class="ul-wrap" v-if="msgData && msgData.length > 0" ref="msgcon">
+          <ul>
+            <template v-for="(item, index) in msgData">
+              <!-- 系统的消息 -->
+              <template v-if="item.msgtype && item.msgtype == '99'">
+                <div class="sysmsg" @click="loadMoreHistory(item)">
+                  <div class="time">{{item.createtime}}</div>
+                  <div class="text">{{item.text}}</div>
+                </div>
+              </template>
+              <template v-else-if="item.recall === '1' || item.isback">
+                <li class="recall">
+                  <div class="time">{{item.sendTime}}</div>
+                  <div class="text" v-if="item.fromid === gUserInfo.userId || item.isMine">你撤回了一条消息</div>
+                  <div class="text" v-else>{{item.nickname}}撤回了一条消息</div>
+                </li>
+              </template>
+              <!-- 删除的消息 -->
+              <!-- <template v-else-if="item.isDelete">
               <li class="delete">
                 <div class="time">{{item.timeline}}</div>
-            <div class="text">该条消息已被删除</div>-->
-            <!-- <div class="text" v-if="item.fromid === user.id">你删除了一条消息</div>
-            <div v-else>{{item.fromName}}删除了一条消息</div>-->
-            <!-- </li>
-            </template>-->
-            <!-- 图片 -->
-            <!-- <template v-else-if="item.recall === '0' && item.mediaType === '3'"> -->
-            <!-- 图片 -->
-            <!-- <div>这里是图片</div> -->
-            <!-- //客服发送的单图文 -->
-            <!-- <div class="material">
+              <div class="text">该条消息已被删除</div>-->
+              <!-- <div class="text" v-if="item.fromid === user.id">你删除了一条消息</div>
+              <div v-else>{{item.fromName}}删除了一条消息</div>-->
+              <!-- </li>
+              </template>-->
+              <!-- 图片 -->
+              <!-- <template v-else-if="item.recall === '0' && item.mediaType === '3'"> -->
+              <!-- 图片 -->
+              <!-- <div>这里是图片</div> -->
+              <!-- //客服发送的单图文 -->
+              <!-- <div class="material">
                 <div v-on:click="openMaterial(message.msgbody)" class="chat-material-show-item">
                   <div class="chat-material-show-item-title">{{message.msgbody.title}}</div>
                   <img class="chat-material-show-item-cover" v-bind:src="message.msgbody.thumb_url" />
                 </div>
-            </div>-->
-            <!-- //客服发送的多图文 -->
-            <!-- <div class="material">
+              </div>-->
+              <!-- //客服发送的多图文 -->
+              <!-- <div class="material">
                 <div
                   v-for="material in message.msgbody"
                   v-on:click="openMaterial(material)"
@@ -97,64 +98,70 @@
                   <div class="chat-material-show-item-title">{{material.title}}</div>
                   <img class="chat-material-show-item-cover" v-bind:src="material.thumb_url" />
                 </div>
-            </div>-->
-            <!-- </template> -->
-            <!-- 图文 -->
-            <!-- <template v-else-if="item.recall === '0' && item.mediaType === '5'">这里是图文</template> -->
-            <!-- 文本表情 -->
-            <template v-else>
-              <!-- 我的消息 -->
-              <li class="my" v-if="item.fromid === gUserInfo.userId || item.isMine">
-                <div class="con-wrap">
-                  <div class="title" v-if="chatType !== 1 && chatType !== 4">
-                    <span class="time">{{item.sendTime}}</span>
-                    <span class="name">{{item.nickname}}</span>
-                  </div>
-                  <div class="con">
-                    <div class="content" @click.right="openMenu(item, 1)">
-                      <div
-                        @click="imgPreview($event)"
-                        style="word-wrap:break-word"
-                        v-html="showMsgDataHandler(item)"
-                      ></div>
-                      <span class="arrow"></span>
+              </div>-->
+              <!-- </template> -->
+              <!-- 图文 -->
+              <!-- <template v-else-if="item.recall === '0' && item.mediaType === '5'">这里是图文</template> -->
+              <!-- 文本表情 -->
+              <template v-else>
+                <!-- 我的消息 -->
+                <li class="my" v-if="item.fromid === gUserInfo.userId || item.isMine">
+                  <div class="con-wrap">
+                    <div class="title" v-if="chatType !== 1 && chatType !== 4">
+                      <span class="time">{{item.sendTime}}</span>
+                      <span class="name">{{item.nickname}}</span>
                     </div>
-                    <img class="head" :src="item.headurl" />
-                  </div>
-                </div>
-              </li>
-              <!-- 别人的消息 -->
-              <li class="other" v-else>
-                <div class="con-wrap">
-                  <div class="title" v-if="chatType !== 1 && chatType !== 4">
-                    <span class="name">{{item.nickname}}</span>
-                    <span class="time">{{item.sendTime}}</span>
-                  </div>
-                  <div class="con">
-                    <img
-                      v-if="chatType == 1"
-                      class="head"
-                      :src="item.headurl ? item.headurl : require('./img/noface.gif')"
-                    />
-                    <img v-else class="head" :src="item.headurl" />
-                    <div class="content" @click.right="openMenu(item, 0)">
-                      <div
-                        @click="imgPreview($event)"
-                        style="word-wrap:break-word"
-                        v-html="showMsgDataHandler(item)"
-                      ></div>
-                      <span class="arrow"></span>
+                    <div class="con">
+                      <msg-loading :status="item.sendStatus"></msg-loading>
+                      <div class="content" @click.right="openMenu(item, 1)">
+                        <div
+                          @click="imgPreview($event)"
+                          style="word-wrap:break-word"
+                          v-html="showMsgDataHandler(item)"
+                        ></div>
+                        <span class="arrow"></span>
+                      </div>
+                      <img class="head" :src="item.headurl" />
                     </div>
                   </div>
-                </div>
-              </li>
+                </li>
+                <!-- 别人的消息 -->
+                <li class="other" v-else>
+                  <div class="con-wrap">
+                    <div class="title" v-if="chatType != 1 && chatType != 4">
+                      <span class="name">{{item.nickname}}</span>
+                      <span class="time">{{item.sendTime}}</span>
+                    </div>
+                    <div class="con">
+                      <img
+                        v-if="chatType == 1"
+                        class="head"
+                        :src="item.headurl ? item.headurl : require('./img/noface.gif')"
+                      />
+                      <img v-else class="head" :src="item.headurl" />
+                      <div class="content" @click.right="openMenu(item, 0)">
+                        <div
+                          @click="imgPreview($event)"
+                          style="word-wrap:break-word"
+                          v-html="showMsgDataHandler(item)"
+                        ></div>
+                        <span class="arrow"></span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              </template>
             </template>
-          </template>
-        </ul>
-        <!-- 群聊-群相关信息 -->
-        <div v-show="chatType === 2" class="go-group" @click.stop="groupInfoOpen">
-          <img v-show="!groupInfoShow" class="arrow" src="./img/arrow_left.png" />
-          <img v-show="groupInfoShow" class="arrow" src="./img/arrow_right.png" />
+          </ul>
+        </div>
+        <!-- 群聊/会话-相关信息 -->
+        <div
+          v-show="chatType == 2 || chatType == 1 || chatType == 3"
+          class="go-group"
+          @click.stop="rightShow"
+        >
+          <img v-show="!conRightShow" class="arrow" src="./img/arrow_left.png" />
+          <img v-show="conRightShow" class="arrow" src="./img/arrow_right.png" />
         </div>
       </div>
     </div>
@@ -162,10 +169,10 @@
       v-show="imgViewShow"
       class="viewer"
       @inited="inited"
-      :images="imgPreviewList"
+      :images="imgList"
       ref="viewer"
     >
-      <img width="0" height="0" v-for="src in imgPreviewList" :src="src" :key="src" />
+      <img width="0" height="0" v-for="(src, index) in imgList" :src="src" :key="index" />
     </viewer>
     <layer-content ref="layer"></layer-content>
   </div>
@@ -173,11 +180,23 @@
 <script>
 import { remote } from 'electron'
 import { mapMutations, mapGetters } from 'vuex'
-import { copy, copy2, faceImgMap, isJson } from 'common/js/util'
+import { copy, copy2, faceImgMap, isJson, formatDate } from 'common/js/util'
 import { msgDataHandler } from 'common/js/business'
 import { GROUPAPI } from 'api/http/groupChat'
 import Session from 'common/js/session.js'
-import Message from 'common/js/message.js'
+import AtMe from 'common/js/atMe.js'
+import { SessionMessage, fiendMessage } from 'common/js/message.js'
+import msgLoading from 'base/msgLoading'
+import {
+  SESSION_CHATTYPE, // 当前聊天类型——会话
+  GROUP_CHATTYPE, // 当前聊天类型——群聊
+  PRIVATE_CHATTYPE, // 当前聊天类型——私聊
+  FRIEND_CHATTYPE, // 当前聊天类型——同伴
+  FRIEND_MSG, // 消息类型——同伴消息
+  GROUP_MSG, // 消息类型——群聊消息
+  PRIVATE_MSG, // 消息类型——私聊消息
+  SESSION_MSG //  消息类型——会话消息
+} from 'common/js/business.js'
 import {
   sessionList,
   ip2area,
@@ -185,51 +204,38 @@ import {
   sessionChatList
 } from 'api/http/sessionChat'
 
-// const SESSION = 3;
-const MyMessage = 1
+const MyMessage = 1 // 我的消息
+// 右键菜单初始化工具
 const Menu = remote.Menu
 const MenuItem = remote.MenuItem
-const SESSION = 1
-const GROUP = 2
-const PRIVATE = 3
-const FRIEND = 4
 
 export default {
-  props: {
-    // 当前群信息
-    groupInfo: {
-      type: Object,
-      default: {
-        teamname: '群聊名字',
-        teamTypeName: '群类型',
-        createDate: '2019-09-12'
-      }
-    },
-    // 当前群聊消息
-    groupMsgList: {
-      type: Array,
-      default: null
-    },
-    // 当前群成员信息
-    groupMembers: {
-      type: Array,
-      default: null
-    },
-    // 当前私聊信息
-    privateInfo: {
-      type: Object,
-      default: null
-    },
-    // 当前私聊消息
-    privateMsgList: {
-      type: Array,
-      default: null
-    }
-  },
   data() {
     return {
+      // 图片预览列表
+      imgList: [],
+      // 请求群历史记录——参数
+      groupMsgParams: {
+        toid: '', // 群id
+        fromid: '', // 用户id
+        teamid: '', // 群id(同上)
+        pageSize: 20, // 每页数量
+        // 翻页的时候,把列表中离当前时间最远的消息的msgid(第一次查询不用传)
+        msgid: ''
+      },
+      // 请求群内单聊记录——参数
+      privateMsgParams: {
+        toid: '', // 接收者id
+        fromid: '', // 发送者id
+        // teamid: '', // 群id(同上)
+        pageSize: 20, // 每页数量
+        page: 1, // 当前页
+        pages: null // 总页数
+      },
       sessionInfo: null,
       friendInfo: null,
+      groupInfo: null,
+      privateInfo: null,
       // 请求撤回参数
       recallParams: {
         msgid: '', // 消息id
@@ -239,15 +245,6 @@ export default {
       },
       // 要展示的消息
       msgData: null,
-      sessionData: {
-        hasMoreMsg: true
-      },
-      groupData: {
-        hasMoreMsg: true
-      },
-      privateData: {
-        hasMoreMsg: true
-      },
       // 当前右键的消息
       clickRightMsg: '',
       // 是否有更多的消息
@@ -286,106 +283,609 @@ export default {
   },
   computed: {
     // 图片预览-图片数据准备
-    imgPreviewList() {
-      if (this.chatType === SESSION) {
-        return this.sessionImg
-      } else if (this.chatType === GROUP) {
-        return this.groupImg
-      } else if (this.chatType === PRIVATE) {
-        return this.privateImg
-      }
-    },
-    // 表情是否显示  当前聊天类型  会话聊天内容  群聊聊天内容  私聊聊天内容  当前用户信息  会话对象信息  同伴列表  会话登录信息
+    // imgPreviewList() {
+    //   if (this.chatType === SESSION_CHATTYPE) {
+    //     return this.sessionImg
+    //   } else if (this.chatType == GROUP_CHATTYPE) {
+    //     return this.groupImg
+    //   } else if (this.chatType == PRIVATE_CHATTYPE) {
+    //     return this.privateImg
+    //   } else if (this.chatType == FRIEND_CHATTYPE) {
+    //     return []
+    //   }
+    // },
     ...mapGetters([
+      'conRightShow', // 右侧信息栏显影
       'groupInfoShow',
-      'chatType',
-      // 'sessionMsgList',
-      //   'groupMsgList',
-      //   'privateMsgList',
-      'sessionImg',
-      'groupImg',
-      'privateImg',
-      'gUserInfo',
-      'sessionList',
-      'friendList',
-      'sUserInfo'
+      'chatType', // 当前聊天类型
+      'sessionImg', // 会话图片列表
+      'groupImg', // 群聊图片列表
+      'privateImg', // 私聊图片列表
+      'friendImg', // 同伴图片列表
+      'gUserInfo', // 群聊登录信息
+      'sUserInfo', // 会话登录信息
+      'sessionList', // 会话列表
+      'groupList', // 群聊列表
+      'privateList', // 私聊列表
+      'friendList', // 同伴列表
+      'atMeList', // atMe列表
+      'memberList', // 群成员列表
+      'sessionInfoShow'
     ])
   },
   created() {
-    // console.log('哈哈哈哈:' + this.chatType)
     this.initMenu()
+    // 监听会话消息
+    this.listenNewSessionMsg()
+    // 监听同伴消息
+    this.listenNewFriendMsg()
+    this.getHertBeat()
   },
   watch: {
-    chatType: 'msgHandler',
-    groupMsgList: 'msgHandler',
-    privateMsgList: 'msgHandler',
+    chatType: 'msgHandler', // chatType切换时消息内容要重新计算
     sessionList: {
-      handler (newV) {
+      handler(newV) {
         if (this.sessionList) {
-          this.sessionInfo = copy2(this.sessionList.find((e, i, arr) => {
-            return e.isSelected 
-          })) || null
-          console.log('有反应了')
+          this.sessionInfo =
+            copy2(
+              this.sessionList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+          // console.log('监听到会话列表变化，当前会话变更')
         } else {
           this.sessionInfo = null
         }
+        // 消息处理
+        this.msgHandler()
+      },
+      deep: true
+    },
+    groupList: {
+      handler(newV) {
+        if (this.groupList) {
+          this.groupInfo =
+            copy2(
+              this.groupList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+          // console.log('监听到群聊列表变化，当前群聊变更')
+        } else {
+          this.groupList = null
+        }
+        // 消息处理
+        this.msgHandler()
+      },
+      deep: true
+    },
+    privateList: {
+      handler(newV) {
+        if (this.privateList) {
+          this.privateInfo =
+            copy2(
+              this.privateList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+          // console.log('监听到私聊列表变化，当前私聊变更')
+        } else {
+          this.privateList = null
+        }
+        // 消息处理
         this.msgHandler()
       },
       deep: true
     },
     friendList: {
-      handler (newV) {
+      handler(newV) {
         if (this.friendList) {
-          this.friendInfo = copy2(this.friendList.find((e, i, arr) => {
-            return e.isSelected 
-          })) || null
-          console.log('有反应了')
+          this.friendInfo =
+            copy2(
+              this.friendList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+          // console.log('监听到会话列表变化，当前同伴变更')
         } else {
           this.friendInfo = null
         }
+        // 消息处理
         this.msgHandler()
       },
       deep: true
     }
   },
   methods: {
+    // 心跳长轮询(未读私聊消息/未读群成员/未读群聊消息)
+    async getHertBeat() {
+      // console.log('心跳长轮询123')
+      // 获取未读消息前，先把私聊列表更新一下
+      // await this.getPrivateList()
+      // 获取未读消息
+      await GROUPAPI.gHertBeat({ userId: this.gUserInfo.userId })
+        .then(res => {
+          if (res.data.code === '0000') {
+            let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+            // console.log('未读消息数量', resData)
+            var teampUnReads = resData.teamMessage.teamUnReadMessageMap
+            var privateUnReads = resData.privateMessage.privateUnReadMessageMap
+            // 遍历群未读消息
+            if (JSON.stringify(teampUnReads) !== '{}') {
+              for (let key in teampUnReads) {
+                let teampUnRead = teampUnReads[key]
+                let teampUnReadNum = teampUnRead.unReadTeamMessageNumber
+                let team = this.groupList.find(e => {
+                  return e.teamid == teampUnRead.teamId
+                })
+                let teamIndex = this.groupList.findIndex(e => {
+                  return e.teamid == teampUnRead.teamId
+                })
+                // 如果未读群消息在群列表不存在, 重新请求群聊列表
+                if (!team) {
+                  this.$emit('getGroupList')
+                  continue
+                }
+                // 如果有未读消息, 就去更新群消息 和 进行At列表处理
+                if (teampUnReadNum && teampUnReadNum > 0) {
+                  // console.log('未读消息')
+                  this.getGroupMsg(team, true)
+                }
+                // 当前群的话，不加红色提醒, 跳过
+                if (
+                  this.chatType == 2 && this.groupInfo &&
+                  teampUnRead.teamId == this.groupInfo.teamid
+                ) {
+                  continue
+                }
+                // 此前心跳传的未读消息
+                let all = team.unReadInfo.allUnReadNum
+                // 此前在该群我发送消息的数量
+                let num = team.unReadInfo.myMsgNum
+                // 此前心跳未传过值 或 和当前心跳传的值不相同时
+                if (!all || all != teampUnReadNum) {
+                  team.unReadInfo.allUnReadNum = teampUnReadNum
+                  // 该群未读总消息数量-我的消息数量
+                  num = teampUnReadNum - num
+                  // 我发送的消息数量清空
+                  team.unReadInfo.myMsgNum = 0
+                }
+                if (num < 0) {
+                  num = 0
+                }
+                // 给群列表设置未读数量字段
+                team.unReadInfo.unReadNum = num
+                // console.log('群聊消息更新', copy2(team))
+                this.SET_EDITGROUP({
+                  index: teamIndex,
+                  group: team
+                })
+              }
+            }
+            // 遍历私聊未读消息
+            if (JSON.stringify(privateUnReads) !== '{}') {
+              // console.log('私聊有未读消息')
+              for (let key in privateUnReads) {
+                let privateUnRead = privateUnReads[key]
+                let privateUnReadNum = privateUnRead.unReadPrivateMsgCount
+                let prvat = this.privateList.find(e => {
+                  return e.id == privateUnRead.fromUserId
+                })
+                let prvatIndex = this.privateList.findIndex(e => {
+                  return e.id == privateUnRead.fromUserId
+                })
+                // 如果未读私聊消息在私聊列表也不存在, 重新请求私聊列表
+                if (!prvat) {
+                  this.$emit('getPrivateList')
+                  continue
+                }
+                // 此前心跳传的未读消息
+                let all = prvat.unReadInfo.allUnReadNum
+                // 此前在该群我发送消息的数量
+                let num = prvat.unReadInfo.myMsgNum
+                // 如果有未读消息, 就去更新私聊消息
+                if (privateUnReadNum && privateUnReadNum > 0) {
+                  this.getPrivateMsg(prvat, false)
+                }
+                // 当前私聊的话，不加红色提醒
+                if (
+                  this.chatType == 3 &&
+                  privateUnRead.fromUserId == this.privateInfo.id
+                ) {
+                  continue
+                }
+                // 此前心跳传过值且和当前心跳传的值相同时, 未读消息为0
+                if (!all || all != privateUnReadNum) {
+                  // 此前心跳未传过值或和当前心跳传的值不相同时
+                  prvat.unReadInfo.allUnReadNum = privateUnReadNum
+                  // 该群未读总消息数量-我的消息数量
+                  num = privateUnReadNum - num
+                  // 我发送的消息数量清空
+                  prvat.unReadInfo.myMsgNum = 0
+                }
+                if (num < 0) {
+                  num = 0
+                }
+                prvat.unReadInfo.unReadNum = num
+                this.SET_EDITPRIVATE({
+                  index: prvatIndex,
+                  private: prvat
+                })
+              }
+            }
+            this.getHertBeat()
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 监听会话消息
+    listenNewSessionMsg() {
+      this.$wsBus.$on('2001', res => {
+        if (res.returncode === '0') {
+          let sessionList = this.sessionList
+          let newMsg = res.data
+          // 会话消息的标志是有sesid
+          if (!newMsg.sesid) {
+            return
+          }
+          // console.log('新会话消息', newMsg)
+          // 原sessionList不存在,就初始化sessionList
+          if (!sessionList) {
+            sessionList = []
+            this.SET_SESSIONLIST({
+              sessionList: []
+            })
+          }
+          // 消息对应的会话是否存在
+          let oldSession = sessionList.find((oldSession, oldI) => {
+            return newMsg.sesid == oldSession.sesid
+          })
+          let oldIndex = sessionList.findIndex((oldSession, oldI) => {
+            return newMsg.sesid == oldSession.sesid
+          })
+          // 消息对应的会话已存在,新增消息
+          if (oldSession) {
+            // 新增消息
+            newMsg.isMine = newMsg.fromid == oldSession.customerid
+            let addMessage = new SessionMessage(newMsg)
+            oldSession.messageList.push(addMessage)
+            // 未读消息数量+1
+            if (!oldSession.isSelected) {
+              oldSession.unReadNum++
+            }
+            // 更新该会话的最新消息时间
+            oldSession.updatetime = formatDate(newMsg.timeline, 'hh:mm:ss')
+            this.SET_EDITSESSION({
+              index: oldIndex,
+              session: oldSession
+            })
+          } else {
+            // 消息对应的会话不存在,新增会话/新增消息
+            // 新增会话
+            let addSession = new Session({
+              guestsid: newMsg.fromid,
+              sesid: newMsg.sesid,
+              lv: newMsg.lv,
+              category: newMsg.category,
+              nickname: newMsg.fromname,
+              headurl: newMsg.fromheadurl,
+              timeline: newMsg.lastmsgtime,
+              unReadNum: 1,
+              status: 0
+            })
+            // 新增消息
+            let addMessage = new SessionMessage(newMsg)
+            addMessage.isMine = newMsg.fromid == this.sUserInfo.userid
+            // console.log(addMessage)
+            // 会话消息拼接
+            addSession.messageList.push(addMessage)
+            // 新增会话
+            this.SET_ADDSESSION({
+              session: addSession
+            })
+          }
+          // 计算所有会话未读消息数量
+          // vm.reportNewMsgCount();
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 监听同伴消息
+    listenNewFriendMsg() {
+      this.$wsBus.$on('2001', res => {
+        if (res.returncode === '0') {
+          let friendList = this.friendList
+          let newMsg = res.data
+          // 同伴消息标志,msgtype=1
+          if (newMsg.msgtype != 1) {
+            return
+          }
+          // console.log('新同伴消息', newMsg)
+          // 原friendList不存在,就初始化friendList
+          if (!friendList) {
+            friendList = []
+            this.SET_FRIENDLIST({
+              friendList: []
+            })
+          }
+          // 消息对应的同伴是否存在
+          let oldFriend = friendList.find((oldFriend, oldI) => {
+            return newMsg.fromid == oldFriend.userid
+          })
+          let oldIndex = friendList.findIndex((oldFriend, oldI) => {
+            return newMsg.fromid == oldFriend.userid
+          })
+          // 消息对应的会话已存在,新增消息
+          if (oldFriend) {
+            // 新增消息
+            let addMessage = new FriendMessage(newMsg)
+            oldFriend.messageList.push(addMessage)
+            // 未读消息数量+1
+            if (!oldFriend.isSelected) {
+              oldFriend.unReadNum++
+            }
+            // 更新该会话的最新消息时间
+            oldFriend.timeline = ewMsg.timeline
+            oldFriend.updatetime = formatDate(newMsg.timeline, 'hh:mm:ss')
+            // console.log('消息对应的同伴已存在', oldIndex, oldFriend)
+            this.SET_EDITFRIEND({
+              index: oldIndex,
+              session: oldFriend
+            })
+          } else {
+            // 消息对应的同伴不存在,新增同伴/新增消息
+            // 新增同伴
+            let addFriend = new Friend({
+              userid: newMsg.fromid,
+              isSelected: false,
+              nickname: newMsg.nickname,
+              headurl: newMsg.headurl,
+              unReadNum: 1,
+              messageList: []
+            })
+            // 新增消息
+            let addMessage = new FriendMessage(newMsg)
+            // 同伴消息拼接
+            addFriend.messageList.push(addMessage)
+            // console.log('消息对应的同伴不存在', addFriend)
+            // 新增同伴
+            this.SET_ADDFRIEND({
+              friend: addFriend
+            })
+          }
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    /** 获取群消息(点击群列表 或者 有未读消息才进行请求, isUnRead来区分)
+     *  groupInfo(object) 群信息
+     *  isUnRead(boolean) 未读消息true(为了收集atMeList)/点击群列表false(为了新增群消息)
+     */
+    getGroupMsg(groupInfo, isUnRead) {
+      // 请求参数赋值
+      this.groupMsgParams.fromid = this.gUserInfo.userId
+      this.groupMsgParams.toid = this.groupMsgParams.teamid = groupInfo.teamid
+      GROUPAPI.gMsgHistory(this.groupMsgParams)
+        .then(res => {
+          if (res.data.code === '0000') {
+            let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+              .messages
+            // 若取得群消息列表为空，不继续执行
+            if (!resData || (resData && resData.length == 0)) {
+              return
+            }
+            // 若原群消息为空，直接传入取得的消息列表，更新群信息。
+            if (
+              !groupInfo.messageList ||
+              (groupInfo.messageList && groupInfo.messageList.length == 0)
+            ) {
+              groupInfo.messageList = resData
+              let groupIndex = this.groupList.findIndex(oldGroup => {
+                return groupInfo.teamid == oldGroup.teamid
+              })
+              // console.log('去更新群消息', groupInfo, groupIndex)
+              if (groupIndex > -1) {
+                this.SET_EDITGROUP({
+                  index: groupIndex,
+                  group: groupInfo
+                })
+              }
+              // 若通过未读消息进入,需要找出@Me信息列表
+              if (isUnRead) {
+                resData.forEach(newMsg => {
+                  if (newMsg.atMsg == '1' && newMsg.atlist.length > 0) {
+                    // 循环atlist——找到@我的消息
+                    this.getAtMeMsg(newMsg, newMsg.atlist)
+                  }
+                })
+              }
+            } else {
+              // 若群消息不为空，查找每条消息在原群消息中是否存在。
+              // 不存在，新增消息/找出@Me信息。存在，不做操作。
+              resData.forEach(newMsg => {
+                let isHas = groupInfo.messageList.find(oldMsg => {
+                  return newMsg.msgid == oldMsg.msgid
+                })
+                if (!isHas) {
+                  groupInfo.messageList.push(newMsg)
+                  let groupIndex = this.groupList.findIndex(oldGroup => {
+                    return groupInfo.teamid == oldGroup.teamid
+                  })
+                  if (groupIndex > -1) {
+                    this.SET_EDITGROUP({
+                      index: groupIndex,
+                      group: groupInfo
+                    })
+                  }
+                  // 若通过未读消息进入,需要找出@Me信息列表
+                  if (isUnRead) {
+                    if (newMsg.atMsg == '1' && newMsg.atlist.length > 0) {
+                      // 循环atlist——找到@我的消息
+                      this.getAtMeMsg(newMsg, newMsg.atlist)
+                    }
+                  }
+                }
+              })
+            }
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    /** 获取私聊消息(点击私聊列表 或者 有未读消息才进行请求)
+     *  privateInfo(object) 群信息
+     *  isUnRead(boolean) 未读消息true/点击群列表false(都是为了更新消息)
+     */
+    async getPrivateMsg(privateInfo, isUnRead) {
+      this.privateMsgParams.toid = this.gUserInfo.userId // 接收者id
+      this.privateMsgParams.fromid = privateInfo.id // 发送者id
+      await GROUPAPI.gPrivateMsg(this.privateMsgParams)
+        .then(res => {
+          if (res.data.code === '0000') {
+            let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+              .messages
+            // 若取得私聊消息列表为空，不继续执行
+            if (!resData || (resData && resData.length == 0)) {
+              return
+            }
+            // 若原私聊消息为空，直接传入取得的消息列表，更新群信息。
+            if (
+              !privateInfo.messageList ||
+              (privateInfo.messageList && privateInfo.messageList.length == 0)
+            ) {
+              privateInfo.messageList = copy2(resData)
+              let privateIndex = this.privateList.findIndex(oldPrivate => {
+                return privateInfo.id == oldPrivate.id
+              })
+              if (privateIndex > -1) {
+                this.SET_EDITPRIVATE({
+                  index: privateIndex,
+                  private: privateInfo
+                })
+              }
+            } else {
+              // 若原私聊消息不为空，查找每条消息在原私聊消息中是否存在。
+              // 不存在，新增消息。存在，不做操作。
+              resData.forEach(newMsg => {
+                let isHas = privateInfo.messageList.find(oldMsg => {
+                  return newMsg.msgid == oldMsg.msgid
+                })
+                // console.log('没有？', isHas, copy2(newMsg))
+                if (!isHas) {
+                  privateInfo.messageList.push(newMsg)
+                  let privateIndex = this.privateList.findIndex(oldPrivate => {
+                    return privateInfo.id == oldPrivate.id
+                  })
+                  if (privateIndex > -1) {
+                    this.SET_EDITPRIVATE({
+                      index: privateIndex,
+                      private: privateInfo
+                    })
+                  }
+                }
+              })
+            }
+          } else {
+            this.$refs.layer.show(res.data.message)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+    },
+    // 循环atlist——找到@我的消息
+    /**
+     * msgInfo: 包含此条atlist的消息对象
+     * atList: atList内容
+     */
+    getAtMeMsg(msgInfo, atList) {
+      atList.forEach(newAt => {
+        // 如果是at我的消息
+        if (newAt.userid == this.gUserInfo.userId) {
+          // 如果@我的消息在缓存atList中已经存在(同群同人),不做操作。
+          if (
+            this.atMeList.find(oldAt => {
+              return (
+                oldAt.groupId == msgInfo.toid && oldAt.userId == msgInfo.fromid
+              )
+            })
+          ) {
+            return false
+          }
+          // 通过群信息/用户信息/消息信息 组成atMe对象
+          let team = this.groupList.find(group => {
+            return group.teamid == msgInfo.toid
+          })
+          // 请求用户信息
+          GROUPAPI.gUserInfo({ userid: msgInfo.fromid })
+            .then(res => {
+              if (res.data.code === '0000') {
+                let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+                // 在atList中新增at信息
+                let addAtMe = new AtMe({
+                  groupId: msgInfo.toid, // 群id
+                  userId: msgInfo.fromid, // 发送者id
+                  groupName: (team && team.teamname) || ' ', // 群名
+                  userName: resData.nickname, // 用户名
+                  sendTime: msgInfo.sendTime // 发送时间
+                })
+                this.SET_ADDATME({
+                  atMe: addAtMe
+                })
+              } else {
+                this.$refs.layer.show(res.data.message)
+              }
+            })
+            .catch(res => {
+              this.$refs.layer.show(res)
+            })
+        }
+      })
+    },
     // 消息处理
     msgHandler() {
+      // console.log('进入消息处理msgHandler')
       // 会话
-      if (this.chatType === SESSION) {
+      if (this.chatType === SESSION_CHATTYPE) {
         // 若当前会话存在，就去取消息列表，否则初始化为空数组
-        if (this.sessionInfo) {
-          var sessionMsgList = this.sessionInfo.messageList
-        }
-        if (!sessionMsgList || sessionMsgList.length === 0) {
+        if (!this.sessionInfo || !this.sessionInfo.messageList) {
           this.msgData = []
           return false
         }
-        this.msgData = sessionMsgList
-      // 群聊
-      } else if (this.chatType === GROUP) {
+        this.msgData = this.sessionInfo.messageList
+        // 群聊
+      } else if (this.chatType === GROUP_CHATTYPE) {
         // 若群消息列表存在，通过群成员列表完善信息，否则初始化为空数组
-        if (!this.groupMsgList || this.groupMsgList.length === 0) {
+        if (!this.groupInfo || !this.groupInfo.messageList) {
           this.msgData = []
           return false
         }
-        this.groupMsgList.forEach((e, i, arr) => {
-          this.groupMembers.forEach((em, im, arrm) => {
+        this.groupInfo.messageList.forEach((e, i, arr) => {
+          this.memberList.forEach((em, im, arrm) => {
             if (e.fromid === em.memberid) {
               e.nickname = em.nickname
               e.headurl = em.headurl
             }
           })
         })
-        this.msgData = this.groupMsgList
-      // 私聊
-      } else if (this.chatType === PRIVATE) {
+        this.msgData = this.groupInfo.messageList
+        // 私聊
+      } else if (this.chatType === PRIVATE_CHATTYPE) {
         // 若私聊列表存在，处理安卓消息格式，否则初始化空数组
-        if (!this.privateMsgList || this.privateMsgList.length === 0) {
+        if (!this.privateInfo || !this.privateInfo.messageList) {
           this.msgData = []
           return false
         }
-        this.privateMsgList.forEach((e, i, arr) => {
+        this.privateInfo.messageList.forEach((e, i, arr) => {
           let isjson = isJson(e.msgbody)
           //   安卓发的是json格式 {msgtext, teamid, teamname}
           if (isjson) {
@@ -396,26 +896,20 @@ export default {
             e.sendTime = e.formatdate
           }
         })
-        this.msgData = this.privateMsgList
-      // 同伴
-      } else if (this.chatType === FRIEND) {
+        this.msgData = this.privateInfo.messageList
+        // 同伴
+      } else if (this.chatType === FRIEND_CHATTYPE) {
         // 若当前同伴存在，就去取消息列表，否则初始化为空数组
-        if (this.friendInfo) {
-          var friendMsgList = this.friendInfo.messageList
-        }
-        if (!friendMsgList || friendMsgList.length === 0) {
+        if (!this.friendInfo || !this.friendInfo.messageList) {
           this.msgData = []
           return false
         }
-        this.msgData = friendMsgList
+        this.msgData = this.friendInfo.messageList
       }
     },
     // 处理消息内容
     showMsgDataHandler(data) {
-      let result = msgDataHandler(data)
-      setTimeout(() => {
-        this.scrollToBottom()
-      }, 20)
+      let result = msgDataHandler(data, this.chatType)
       return result
     },
     // 会话加载更多历史消息
@@ -423,20 +917,19 @@ export default {
       if (item.handleLoadHistory) {
         var newPage = this.sessionInfo.currMsgPage + 1
         sessionChatList({
-          userid: this.sUserInfo.userid,
+          userid: this.sessionInfo.guestsid,
           page: newPage
         })
           .then(res => {
             if (res.data.returncode == '0') {
-              let sessionInfo = copy2(this.sessionInfo)
+              let sessionInfo = this.sessionInfo
               let oldMsgList = sessionInfo.messageList
               // 历史消息收集
               res.data.list.forEach((newMsg, i) => {
                 // 新增消息
-                newMsg.isMine =
-                  newMsg.fromid !== sessionInfo.sesorigin.userid
+                newMsg.isMine = newMsg.fromid !== sessionInfo.sesorigin.userid
                 newMsg.fromHistory = true
-                let msg = new Message(newMsg)
+                let msg = new SessionMessage(newMsg)
                 oldMsgList.splice(1, 0, msg)
               })
               // 是否还有历史消息判断
@@ -448,15 +941,19 @@ export default {
               }
               // 更新当前会话信息
               sessionInfo.currMsgPage = newPage
-              let sessionList = copy2(this.sessionList)
               let index = this.sessionList.findIndex((e, i, arr) => {
                 return sessionInfo.sesid == e.sesid
               })
-              sessionList[index] = sessionInfo
-              // 更新会话列表
-              this.SET_SESSIONLIST({
-                sessionList: sessionList
+              // 更新会话消息
+              this.SET_EDITSESSION({
+                index: index,
+                session: sessionInfo
               })
+              // sessionList[index] = sessionInfo
+              // 更新会话列表
+              // this.SET_SESSIONLIST({
+              //   sessionList: sessionList
+              // })
             } else {
               this.$refs.layer.show(res.returnmsg)
             }
@@ -472,17 +969,23 @@ export default {
     },
     // 图片预览
     imgPreview(event) {
+      // console.log('图片信息', event)
       if (
         event.target.nodeName === 'IMG' &&
         event.target.classList[0] === 'capture'
       ) {
         let imgsrc = event.target.currentSrc
-        let curIndex = this.imgPreviewList.findIndex((e, i, arr) => {
-          return e === imgsrc
-        })
-        this.imgViewShow = true
-        // console.log('哈哈', curIndex)
-        this.$viewer.view(curIndex)
+        this.imgList.splice(0, this.imgList.length)
+        this.imgList.push(imgsrc)
+        // 因为vue组件响应式渲染是异步的，viewer的update需要等渲染完再进行
+        setTimeout(() => {
+          this.$viewer.update()
+          this.imgViewShow = true
+          this.$viewer.view(0)
+        }, 20)
+        // let curIndex = this.imgList.findIndex((e, i, arr) => {
+        //   return e === imgsrc
+        // })
       }
     },
     // 初始化右键菜单
@@ -498,7 +1001,7 @@ export default {
     },
     // 右键消息打开菜单
     openMenu(item, type) {
-      console.log('撤回的消息', item)
+      // console.log('撤回的消息', item)
       this.clickRightMsg = item.msgid
       if (type === MyMessage) {
         this.menu_my.popup(remote.getCurrentWindow())
@@ -509,7 +1012,7 @@ export default {
     },
     // 删除/撤回消息
     menuOperator(type, id) {
-      console.log('撤回消息id', id)
+      // console.log('撤回消息id', id)
       this.recallParams.msgid = id
       this.recallParams.toid = this.groupInfo.teamid
       this.recallParams.fromid = this.gUserInfo.userId
@@ -517,8 +1020,8 @@ export default {
         .then(res => {
           if (res.data.code === '0000') {
             let resData = this.$crypto.decrypt(res.data.body)
-            console.log('撤回结果', resData)
-            console.log(id, this.msgData)
+            // console.log('撤回结果', resData)
+            // console.log(id, this.msgData)
             this.msgData.forEach((e, i, arr) => {
               if (e.msgid === id) {
                 e[type] = '1'
@@ -532,17 +1035,18 @@ export default {
           this.$refs.layer.show(res)
         })
     },
-
-    // 打开群聊详情
-    groupInfoOpen() {
-      this.SET_GROUPINFO({
-        groupInfoShow: !this.groupInfoShow
+    // 打开右侧信息栏
+    rightShow() {
+      this.SET_RIGHTSHOW({
+        conRightShow: !this.conRightShow
       })
     },
     // 滚动到底部
     scrollToBottom() {
+      if (this.$refs.msgcon && this.$refs.msgcon.scrollHeight) {
+        this.$refs.msgcon.scrollTop = this.$refs.msgcon.scrollHeight
+      }
       //   console.log(this.$refs.msgcon.scrollTop, this.$refs.msgcon.scrollHeight)
-      this.$refs.msgcon.scrollTop = this.$refs.msgcon.scrollHeight
     },
     ...mapMutations({
       SET_GROUPINFO: 'SET_GROUPINFO',
@@ -550,8 +1054,20 @@ export default {
       SET_SESMSGLIST: 'SET_SESMSGLIST',
       SET_SESMSGPAGE: 'SET_SESMSGPAGE',
       SET_SESSIONLIST: 'SET_SESSIONLIST',
-      SET_FRIENDLIST: 'SET_FRIENDLIST'
+      SET_FRIENDLIST: 'SET_FRIENDLIST',
+      SET_EDITSESSION: 'SET_EDITSESSION',
+      SET_ADDSESSION: 'SET_ADDSESSION',
+      SET_EDITFRIEND: 'SET_EDITFRIEND',
+      SET_ADDFRIEND: 'SET_ADDFRIEND',
+      SET_GROUPLIST: 'SET_GROUPLIST',
+      SET_EDITGROUP: 'SET_EDITGROUP',
+      SET_ADDATME: 'SET_ADDATME',
+      SET_EDITPRIVATE: 'SET_EDITPRIVATE',
+      SET_RIGHTSHOW: 'SET_RIGHTSHOW'
     })
+  },
+  components: {
+    msgLoading
   },
   filters: {
     transTerminal: function(tname) {
@@ -603,7 +1119,7 @@ export default {
   width: 100%;
   border-bottom: 1px solid $border;
   background-color: $blank;
-  .title{
+  .title {
     height: 57px;
     padding: 6px 20px;
   }
@@ -641,6 +1157,7 @@ export default {
 }
 
 .chat-content {
+  transform: translate(0, 0);
   width: 100%;
   flex: 1;
   position: relative;
@@ -652,11 +1169,11 @@ export default {
   .go-group {
     position: absolute;
     width: 0;
-    right: 0;
+    right: 0px;
     height: 110px;
     border-width: 10px;
     border-style: solid;
-    top: 28%;
+    top: 50%;
     transform: translateY(-50%);
     border-color: transparent rgb(213, 213, 213) transparent transparent;
     cursor: pointer;
@@ -684,7 +1201,13 @@ export default {
     border-radius: 5px;
     cursor: default;
   }
-
+  .ul-wrap {
+    width: 100%;
+    position: absolute;
+    height: 100%;
+    overflow: auto;
+    padding-bottom: 20px;
+  }
   ul {
     .recall,
     .delete,
@@ -753,7 +1276,6 @@ export default {
 
     .my {
       justify-content: flex-end;
-
       .con-wrap {
         margin-right: 10px;
       }
@@ -761,6 +1283,7 @@ export default {
       .title {
         display: flex;
         justify-content: flex-end;
+        align-items: center;
       }
       .name {
         margin-left: 10px;

@@ -6,6 +6,11 @@ const mutations = {
   // loading (state, payload) {
   //   state.loading = payload.loading
   // },
+  // 登录session权限
+  // [types.SET_SESSION](state, data) {
+  //   state.session = data.session
+  //   storage.setSessionItem('session', data.session)
+  // },
   // 群聊当前登录用户信息
   [types.SET_GUSERINFO](state, data) {
     state.gUserInfo = data.gUserInfo
@@ -20,21 +25,6 @@ const mutations = {
   [types.SET_USERLIST](state, data) {
     state.userList = data.userList
     storage.setLocalItem('userList', data.userList)
-  },
-  // 长轮询——未读私聊消息
-  [types.SET_UNREADPMSG](state, data) {
-    state.unReadPrivateMsg = data.unReadPrivateMsg
-    // storage.setLocalItem('unReadPrivateMsg', data.unReadPrivateMsg)
-  },
-  // 长轮询——未读群聊消息
-  [types.SET_UNREADGMSG](state, data) {
-    state.unReadGroupMsg = data.unReadGroupMsg
-    // storage.setLocalItem('unReadPrivateMsg', data.unReadPrivateMsg)
-  },
-  // 长轮询——群操作
-  [types.SET_GOPERATE](state, data) {
-    state.groupOperate = data.groupOperate
-    // storage.setLocalItem('unReadPrivateMsg', data.unReadPrivateMsg)
   },
   // 记住登录密码
   [types.SET_REMEMBERPSW](state, data) {
@@ -51,40 +41,33 @@ const mutations = {
     state.chatType = data.chatType
     storage.setSessionItem('chatType', data.chatType)
   },
-  // 私聊列表
-  [types.SET_PRIVATELIST](state, data) {
-    state.privateList = data.privateList
-    // storage.setSessionItem('chatType', data.chatType)
+  // 群成员列表
+  [types.SET_MEMBERLIST](state, data) {
+    state.memberList = data.memberList
   },
-  // 会话消息列表
-  // [types.SET_SESSIONMSG](state, data) {
-  //   state.sessionMsgList = data.sessionMsgList
-  //   // storage.setItem('messageList', data.messageList)
-  // },
-  // 群聊消息列表
-  [types.SET_GROUPMSG](state, data) {
-    state.groupMsgList = data.groupMsgList
-    // storage.setItem('messageList', data.messageList)
+  // 会话图片预览列表——新增
+  [types.SET_ADDSESSIONIMG](state, data) {
+    state.sessionImg.push(data.sessionImg)
   },
-  // 私聊消息列表
-  [types.SET_PRIVATEMSG](state, data) {
-    state.privateMsgList = data.privateMsgList
-    // storage.setItem('messageList', data.messageList)
+  // 群聊图片预览列表——新增
+  [types.SET_ADDGROUPIMG](state, data) {
+    state.groupImg.push(data.groupImg)
   },
-  // 会话图片预览列表
-  [types.SET_SESSIONIMG](state, data) {
-    state.sessionImg = data.sessionImg
-    // storage.setItem('messageList', data.messageList)
+  // 私聊图片预览列表——新增
+  [types.SET_ADDPRIVATEIMG](state, data) {
+    state.privateImg.push(data.privateImg)
   },
-  // 群聊图片预览列表
-  [types.SET_GROUPIMG](state, data) {
-    state.groupImg = data.groupImg
-    // storage.setItem('messageList', data.messageList)
+  // 会话图片预览列表——编辑
+  [types.SET_EDITSESSIONIMG](state, data) {
+    state.sessionImg.splice(data.index, 1, data.sessionImg)
   },
-  // 私聊图片预览列表
-  [types.SET_PRIVATEIMG](state, data) {
-    state.privateImg = data.privateImg
-    // storage.setItem('messageList', data.messageList)
+  // 群聊图片预览列表——编辑
+  [types.SET_EDITGROUPIMG](state, data) {
+    state.groupImg.splice(data.index, 1, data.groupImg)
+  },
+  // 私聊图片预览列表——编辑
+  [types.SET_EDITPRIVATEIMG](state, data) {
+    state.privateImg.splice(data.index, 1, data.privateImg)
   },
   // 聊天表情包显示
   [types.SET_FACEIMG](state, data) {
@@ -96,6 +79,19 @@ const mutations = {
     state.materialShow = data.materialShow
     storage.setSessionItem('materialShow', data.materialShow)
   },
+  // 修改群成员列表
+  [types.SET_EDITMEMBER](state, data) {
+    state.memberList.splice(data.index, 1, data.member)
+  },
+  // 删除群成员列表
+  [types.SET_DELETEMEMBER](state, data) {
+    state.memberList.splice(data.index, 1)
+  },
+  // 右边信息栏显隐
+  [types.SET_RIGHTSHOW](state, data) {
+    state.conRightShow = data.conRightShow
+    storage.setSessionItem('conRightShow', data.conRightShow)
+  },
   // 群聊右边信息栏显隐
   [types.SET_GROUPINFO](state, data) {
     state.groupInfoShow = data.groupInfoShow
@@ -106,7 +102,7 @@ const mutations = {
     state.sessionInfoShow = data.sessionInfoShow
     storage.setSessionItem('sessionInfoShow', data.sessionInfoShow)
   },
-  // 会话右边信息栏显隐
+  // 私聊右边信息栏显隐
   [types.SET_PRIVATEINFO](state, data) {
     state.privateInfoShow = data.privateInfoShow
     storage.setSessionItem('privateInfoShow', data.privateInfoShow)
@@ -114,11 +110,6 @@ const mutations = {
   // 截图图片信息
   [types.SET_CAPTUREIMG](state, data) {
     state.captureImg = data.captureImg
-    // storage.setItem('captureImg', data.captureImg)
-  },
-  // 会话对象信息
-  [types.SET_SESINFO](state, data) {
-    state.sessionInfo = data.sessionInfo
     // storage.setItem('captureImg', data.captureImg)
   },
   // 会话对象信息——真实信息
@@ -139,6 +130,51 @@ const mutations = {
   // 是否锁住发送消息按钮 
   [types.SET_LOCKTEXT](state, data) {
     state.lockText = data.lockText
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 私聊列表——整体修改
+  [types.SET_PRIVATELIST](state, data) {
+    state.privateList = data.privateList
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 私聊列表——修改某个私聊
+  [types.SET_EDITPRIVATE](state, data) {
+    state.privateList.splice(data.index, 1, data.private)
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 私聊列表——新增某个私聊
+  [types.SET_ADDPRIVATE](state, data) {
+    state.privateList.push(data.private)
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // @me列表——整体修改
+  // [types.SET_ATMELIST](state, data) {
+  //   state.atMeList = data.atMeList
+  //   // storage.setItem('captureImg', data.captureImg)
+  // },
+  // // @me列表——修改某个atMe
+  // [types.SET_EDITATME](state, data) {
+  //   state.atMeList.splice(data.index, 1, data.atMe)
+  //   // storage.setItem('captureImg', data.captureImg)
+  // },
+  // @me列表——新增某个atMe
+  [types.SET_ADDATME](state, data) {
+    state.atMeList.push(data.atMe)
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 群聊列表——整体修改
+  [types.SET_GROUPLIST](state, data) {
+    state.groupList = data.groupList
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 群聊列表——修改某个群聊
+  [types.SET_EDITGROUP](state, data) {
+    state.groupList.splice(data.index, 1, data.group)
+    // storage.setItem('captureImg', data.captureImg)
+  },
+  // 群聊列表——新增某个群聊
+  [types.SET_ADDGROUP](state, data) {
+    state.groupList.push(data.group)
     // storage.setItem('captureImg', data.captureImg)
   },
   // 会话列表——整体修改
@@ -170,6 +206,18 @@ const mutations = {
   [types.SET_ADDFRIEND](state, data) {
     state.friendList.push(data.friend)
     // storage.setItem('captureImg', data.captureImg)
+  },
+  // 新增某个消息——发送的消息列表
+  [types.SET_ADDSENDMSG](state, data) {
+    state.sendMsgList.push(data.sendMsg)
+  },
+  // 编辑某个消息——发送的消息列表
+  [types.SET_EDITSENDMSG](state, data) {
+    state.sendMsgList.splice(data.index, 1, data.sendMsg)
+  },
+  // 删除某个消息——发送的消息列表
+  [types.SET_DELETESENDMSG](state, data) {
+    state.sendMsgList.splice(data.index, 1)
   }
 }
 export default mutations

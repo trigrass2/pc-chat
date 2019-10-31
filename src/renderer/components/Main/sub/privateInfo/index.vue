@@ -6,7 +6,7 @@
     <div class="record-container">
       <div class="page">
         <div :class="[isPreOk ? '': 'disable', 'pre', 'btn']" @click="pre">上一页</div>
-        <div class="text">页: {{privateHistoryParams.page}}/{{privateHistoryParams.pages}}</div>
+        <div class="text">页: {{privateMsgParams.page}}/{{privateMsgParams.pages}}</div>
         <div :class="[isNextOk ? '' : 'disable', 'next', 'btn']" @click="next">下一页</div>
       </div>
       <div class="record-wrap">
@@ -19,38 +19,50 @@
               <div class="name">{{item.nickname}}</div>
               <div class="time">{{item.sendTime}}</div>
               <!-- 图片/表情/文字 -->
-              <div class="content" v-html="msgDataHandler(item)"></div>
+              <div class="content" v-html="showMsgDataHandler(item)"></div>
             </li>
           </template>
           <div v-else class="noData">暂无历史消息</div>
         </ul>
       </div>
     </div>
+    <layer-content ref="layer"></layer-content>
   </div>
 </template>
 
 <script>
 import { remote } from 'electron'
-import { copy, faceImgMap, isJson } from 'common/js/util'
+import { copy2, isJson } from 'common/js/util'
 import { GROUPAPI } from 'api/http/groupChat'
+import { mapGetters, mapMutations } from 'vuex'
+import { msgDataHandler } from 'common/js/business'
 // const MEMBER = 1;
 
 const Menu = remote.Menu
 const MenuItem = remote.MenuItem
 
 export default {
-  props: {
-    privateMsgHistory: {
-      type: Array,
-      default: null
-    },
-    privateHistoryParams: {
-      type: Object,
-      default: null
-    }
+  created() {
+    // 翻页状态更新
+    this.goPageStatus(this.privateMsgParams.page, this.privateMsgParams.pages)
+  },
+  computed: {
+    // 用户信息
+    ...mapGetters(['gUserInfo', 'privateList'])
   },
   data() {
     return {
+      // 请求群内单聊记录——参数
+      privateMsgParams: {
+        toid: '', // 接收者id
+        fromid: '', // 发送者id
+        // teamid: '', // 群id(同上)
+        pageSize: 20, // 每页数量
+        page: 1, // 当前页
+        pages: 1 // 总页数
+      },
+      // 历史消息列表
+      privateMsgHistory: null,
       // 防止多次连续点击下一页/上一页
       isReqOk: true,
       // 下一页是否可点击
@@ -68,51 +80,100 @@ export default {
     }
   },
   watch: {
-    privateMsgHistory: 'msgHandler'
+    privateMsgHistory: 'msgHandler',
+    privateList: {
+      handler(newV) {
+        if (this.privateList) {
+          this.privateInfo =
+            copy2(
+              this.privateList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+          // console.log('监听到私聊列表变化，当前私聊历史消息变更')
+        } else {
+          this.privateInfo = null
+        }
+        // // 消息处理
+        // this.msgHandler()
+      },
+      deep: true
+    }
   },
   methods: {
+    // 私聊历史消息记录
+    /**
+     * privateInfo: 当前私聊
+     * page: 页数
+     */
+    async getPrivateMsg(privateInfo, page) {
+      this.privateMsgParams.toid = this.gUserInfo.userId
+      if (privateInfo) {
+        this.privateMsgParams.fromid = privateInfo.id
+      }
+      if (page) {
+        this.privateMsgParams.page = page
+      }
+      await GROUPAPI.gPrivateMsg(this.privateMsgParams).then(res => {
+        if (res.data.code === '0000') {
+          let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+          // console.log('私聊历史记录', resData)
+          this.privateMsgParams.pages = resData.pages
+          this.privateMsgParams.page = resData.pageNum
+          // 翻页状态更新
+          this.goPageStatus(resData.pageNum, resData.pages)
+          // 分页数据更新
+          this.privateMsgHistory = resData.messages
+          // 放开请求
+          this.isReqOk = true
+        } else {
+          // 放开请求
+          this.isReqOk = true
+          this.$refs.layer.show(res.data.message)
+        }
+      })
+      .catch(res => {
+        // 放开请求
+        this.isReqOk = true
+        this.$refs.layer.show(res)
+      })
+    },
     // 上一页
     pre() {
-      if (!this.isReqOk) {
+      if (!this.isReqOk || !this.isPreOk) {
         return false
       }
       this.isReqOk = false
-      let page = Number(this.privateHistoryParams.page) - 1
-      this.$emit('getPrivateMsgHistory', null, page, 'page')
+      let page = Number(this.privateMsgParams.page) - 1
+      this.getPrivateMsg(this.privateInfo, page)
     },
     // 下一页
     next() {
-      if (!this.isReqOk) {
+      if (!this.isReqOk || !this.isNextOk) {
         return false
       }
-      this.isNext = false
-      let page = Number(this.privateHistoryParams.page) + 1
-      console.log('我来请求下一页了')
-      this.$emit('getPrivateMsgHistory', null, page, 'page')
-    },
-    // 放开请求
-    reqOpen() {
-      this.isReqOk = true
-    },
-    // 锁定请求
-    reqClose() {
       this.isReqOk = false
+      let page = Number(this.privateMsgParams.page) + 1
+      this.getPrivateMsg(this.privateInfo, page)
     },
-    // 下一页放开
-    nextOpen() {
-      this.isNextOk = true
-    },
-    // 下一页锁定
-    nextClose() {
-      this.isNextOk = false
-    },
-    // 上一页放开
-    preOpen() {
-      this.isPreOk = true
-    },
-    // 上一页锁定
-    preClose() {
-      this.isPreOk = false
+    // 翻页状态判断
+    goPageStatus(curPage, totalPage) {
+      // 下一页状态判断
+      if (!totalPage || curPage >= totalPage) {
+        // 下一页锁定
+        this.isNextOk = false
+      } else {
+        // 下一页放开
+        this.isNextOk = true
+      }
+      // 上一页状态判断
+      if (curPage === 1) {
+        // 上一页锁定
+        this.isPreOk = false
+      } else {
+        // 上一页放开
+        this.isPreOk = true
+      }
     },
     // 消息处理
     msgHandler() {
@@ -130,61 +191,11 @@ export default {
           e.sendTime = e.formatdate
         }
       })
-      console.log('现在是私聊', this.msgData)
     },
-    // 消息数据处理
-    msgDataHandler(data) {
-      console.log('历史消息数据处理', data)
-      var newMsg = copy(data)
-      // 文本表情——表情字符串替换为图片img节点
-      if (newMsg.mediatype === 1 || newMsg.mediatype === 0) {
-        var regex = /\[(.+?)\]/g
-        var result
-        // console.log('消息处理中——文本', newMsg)
-        while ((result = regex.exec(newMsg.msgbody)) !== null) {
-          //   console.log(newMsg.content)
-          let imgIndex = faceImgMap.findIndex((e, i, arr) => {
-            return e === result[0]
-          })
-          //   console.log('表情index', imgIndex)
-          if (imgIndex !== -1) {
-            var src = require('common/img/' + Number(imgIndex + 1) + '.png')
-          }
-          //   let src = result[0].substr(2, result[0].length - 3)
-          //   src = require('common/img/' + src + '.png')
-          let faceImgHtml = `<img src='${src}' width='15px' height='15px' style="margin-top: 4px;"></img>`
-          if (newMsg.content) {
-            newMsg.content = newMsg.content.replace(result[0], faceImgHtml)
-          } else {
-            newMsg.content = newMsg.msgbody.replace(result[0], faceImgHtml)
-          }
-        }
-        // console.log('qwewqe', newMsg.content)
-        if (!newMsg.content) {
-          newMsg.content = newMsg.msgbody
-        }
-        // console.log('ewwwwww', newMsg.content)
-        // 图片
-      } else if (newMsg.mediatype === 3) {
-        // scale: Width/height
-        // if (newMsg.scale) {
-        //   var scale = newMsg.scale
-        //   var width = 100 * scale
-        // } else {
-        //   width = 100
-        // }
-        // // width最大500px
-        // if (width > 500) {
-        //   width = 500
-        // }
-        // 图片 替换为图片img节点
-        // console.log('消息处理中——图片', newMsg)
-        newMsg.content = `<img class='capture' src='${newMsg.msgbody}' style="background-size: contain; width: 100px; height:100px;"></img>`
-      } else if (newMsg.mediatype === 5) {
-        newMsg.content = '我是图文'
-      }
-      //   console.log('这里是处理好的消息：', newMsg.content)
-      return newMsg.content
+    // 消息内容处理
+    showMsgDataHandler(data) {
+      let result = msgDataHandler(data)
+      return result
     }
   }
 }

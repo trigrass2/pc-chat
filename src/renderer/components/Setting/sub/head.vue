@@ -86,7 +86,7 @@ export default {
                   // 文件上传成功
                   vm.$refs.layer.show('图片上传成功')
                   // 更新头像
-                  console.log(vm.sUserInfo, res.data.data)
+                  // console.log(vm.sUserInfo, res.data.data)
                   let newInfo = copy2(vm.sUserInfo)
                   newInfo.headurl = res.data.data
                   vm.SET_SUSERINFO({
@@ -126,7 +126,7 @@ export default {
         return
       }
       let size = Math.floor(file.size / 1024 / 1024)
-      console.log(size)
+      // console.log(size)
       if (size > this.maxSize) {
         this.$refs.layer.show('图片大小不符合要求,请上传小于2M大小的图片')
         return false

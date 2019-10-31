@@ -1,9 +1,10 @@
 import axios from 'axios'
-import { formData } from './config'
+import { formData, testUrl } from './config'
+let kxUrl = testUrl.webkx
 
 // 同伴列表
 export function friendList(data) {
-  const url = '/webkx/api/getcontacts.php'
+  const url = `${kxUrl}/webkx/api/getcontacts.php`
   const reqData = {
     userid: data.userid
   }
@@ -15,7 +16,7 @@ export function friendList(data) {
 
 // 通过ip查取地区
 export function ip2area(data) {
-  const url = '/webkx/api/ip.php'
+  const url = `${kxUrl}/webkx/api/ip.php`
   const reqData = {
     userid: data.userid,
     ip: data.ip
@@ -28,7 +29,7 @@ export function ip2area(data) {
 
 // 真实信息查询
 export function realInfo(data) {
-  const url = '/webkx/api/loadRealInfo.php'
+  const url = `${kxUrl}/webkx/api/loadRealInfo.php`
   const reqData = {
     userid: data.userid,
     custid: data.custid
@@ -41,7 +42,7 @@ export function realInfo(data) {
 
 // 会话聊天记录
 export function sessionChatList(data) {
-  const url = '/webkx/api/loadChatHis.php'
+  const url = `${kxUrl}/webkx/api/loadChatHis.php`
   const reqData = {
     userid: data.userid,
     // exportall: '',

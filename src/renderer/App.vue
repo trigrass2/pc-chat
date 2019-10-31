@@ -25,13 +25,15 @@ export default {
     this.SET_GROUPINFO({
       groupInfoShow: false
     });
+    this.SET_PRIVATEINFO({
+      privateInfoShow: false
+    });
     this.SET_SESSIONINFO({
-      sessionInfoShow: false
+      sessionInfoShow: true
     });
   },
   methods: {
     globalEvent() {
-      console.log(11111);
       // 聊天表情包关闭
       this.SET_FACEIMG({
         faceImgShow: false
@@ -41,7 +43,8 @@ export default {
       SET_FACEIMG: "SET_FACEIMG",
       SET_CHATTYPE: "SET_CHATTYPE",
       SET_GROUPINFO: "SET_GROUPINFO",
-      SET_SESSIONINFO: "SET_SESSIONINFO"
+      SET_SESSIONINFO: "SET_SESSIONINFO",
+      SET_PRIVATEINFO: "SET_PRIVATEINFO"
     })
   }
 };

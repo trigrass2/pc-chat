@@ -18,6 +18,7 @@
 
 <script>
 import { imgUploader } from 'api/http/groupChat.js'
+import { copy2 } from 'common/js/util'
 
 export default {
   data() {
@@ -39,10 +40,9 @@ export default {
   methods: {
     // 执行上传文件时触发
     async handleFileChange(e) {
-      let inputDOM = this.$refs.inputer
+      var inputDOM = this.$refs.inputer
       // 通过DOM取文件数据
       let file = inputDOM.files[0]
-      // console.log(file);
       if (!file) {
         return false
       }
@@ -64,17 +64,23 @@ export default {
       reader.onloadend = function() {
         imgUploader(this.result)
           .then(res => {
-            console.log(res)
+            // console.log(res)
             if (res.data.returncode === '0') {
               // 文件上传成功
               vm.$emit('uploadSuccess', res.data.data)
+              // 清空input file
+              vm.$refs.inputer.value = ''
             } else {
               // 文件上传失败
               vm.$emit('uploadError', res.data.returnmsg)
+              // 清空input file
+              vm.$refs.inputer.value = ''
             }
           })
           .catch(e => {
             vm.$emit('uploadError', e)
+            // 清空input file
+            vm.$refs.inputer.value = ''
           })
       }
       // // 图片上传

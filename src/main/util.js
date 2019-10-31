@@ -14,6 +14,7 @@ export function NewWindow(config, hashName) {
   let newWin = new BrowserWindow(finalConfig)
   let fileLocation = winUrl(hashName)
   newWin.loadURL(fileLocation)
+  newWin.webContents.openDevTools()
   // 当页面在窗口中直接加载时，用户会看到未完成的页面，这不是一个好的原生应用的体验。
   // 这一步是为了让画面准备好了再显示。
   newWin.once('ready-to-show', () => {

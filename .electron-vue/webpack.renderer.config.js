@@ -144,6 +144,7 @@ let rendererConfig = {
   ],
   output: {
     filename: '[name].js',
+    publicPath: '../',
     libraryTarget: 'commonjs2',
     path: path.join(__dirname, '../dist/electron')
   },

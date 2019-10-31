@@ -16,7 +16,7 @@
         <!-- </label> -->
         <img src="./img/editor-tools-prtsc.png" @click="captureScreen" />
         <!-- <img src="./img/editor-tools-material.png" @click.stop="openFace" /> -->
-        <div v-show="chatType === 1" class="session-record" @click="sessionInfoOpen">聊天记录&摘要</div>
+        <!-- <div v-show="chatType === 1" class="session-record" @click="sessionInfoOpen">聊天记录&摘要</div> -->
       </div>
       <div class="faceimg-box" v-show="faceImgShow">
         <template v-for="n in 70">
@@ -28,14 +28,22 @@
     <div class="message-box">
       <edit-div class="message" v-model="message" ref="editdiv"></edit-div>
       <div class="operate">
-        <div v-show="chatType === 1" class="session-end" @click="sessionEnd">结束会话</div>
+        <div
+          v-show="chatType == 1 && sessionInfo && sessionInfo.status == 0"
+          class="session-end"
+          @click="sessionEnd"
+        >结束会话</div>
         <div class="common-phrases">
-          <div v-show="chatType === 1" class="enter" @click="openPhrases">常用语</div>
+          <div
+            v-show="chatType == 1 && sessionInfo && sessionInfo.status == 0"
+            class="enter"
+            @click="openPhrases"
+          >常用语</div>
           <ul v-show="commonPhrasesShow && chatType === 1" @mouseleave="closePhrases">
             <li v-for="(item, index) in phrasesList" @click="usePhrases(item)">{{item.content}}</li>
           </ul>
         </div>
-        <div class="send" @click="send()">发送(Ctrl+Enter)</div>
+        <div class="send" @click="sendFirst()">发送(Ctrl+Enter)</div>
       </div>
     </div>
     <layer-content ref="layer"></layer-content>
@@ -48,50 +56,35 @@ import { uuid } from 'api/http/config'
 import { GROUPAPI, imgUploader } from 'api/http/groupChat'
 import { copy, copy2, faceImgMap, formatDate } from 'common/js/util'
 import editDiv from './sub/editDiv'
-const SESSION = 1
-const GROUP = 2
-const PRIVATE = 3
-const FRIEND = 4
+import {
+  sessionMessage,
+  SESSION_CHATTYPE,
+  GROUP_CHATTYPE,
+  PRIVATE_CHATTYPE,
+  FRIEND_CHATTYPE,
+  MSG_ING,
+  MSG_SUC,
+  MSG_FAI,
+  FRIEND_MSG,
+  GROUP_MSG,
+  PRIVATE_MSG,
+  SESSION_MSG
+} from 'common/js/business'
 
 export default {
-  props: {
-    // 当前群聊信息
-    groupInfo: {
-      type: Object,
-      default: null
-    },
-    // 当前群聊消息
-    groupMsgList: {
-      type: Array,
-      default: null
-    },
-    // 当前私聊信息
-    privateInfo: {
-      type: Object,
-      default: null
-    },
-    // 当前私聊消息
-    privateMsgList: {
-      type: Array,
-      default: null
-    },
-    // 群列表我发送的消息数量
-    groupMyMsgNum: {
-      type: Object,
-      default: null
-    },
-    // 私聊列表我发送的消息数量
-    privateMyMsgNum: {
-      type: Object,
-      default: null
-    }
-  },
+  props: {},
   created() {
+    // 监听发送会话/同伴消息——回执
+    this.listenMsgSend()
     // 监听截图成功后返回图片信息
     this.listenCaptureImg()
   },
   data() {
     return {
+      sessionInfo: null,
+      groupInfo: null,
+      privateInfo: null,
+      friendInfo: null,
       //   表情是否显示
       //   faceImgShow: true,
       // 消息内容
@@ -101,79 +94,85 @@ export default {
       // 常用语是否显示
       commonPhrasesShow: false,
       // 常用语列表
-      phrasesList: [
-        {
-          id: 1,
-          content: '您好，请问有什么可以帮您？'
-        },
-        {
-          id: 2,
-          content: '马上帮您查询看看，请稍等一下'
-        },
-        {
-          id: 3,
-          content: '您别着急，这里立刻帮您核实一下情况。请您耐心等待一下。'
-        },
-        {
-          id: 4,
-          content:
-            '请您不要着急，我非常理解您的心情，我们一定会竭尽全力为您解决的。'
-        },
-        {
-          id: 5,
-          content: '非常感谢您这么好的建议，我们会不断改进服务，让您满意。'
-        },
-        {
-          id: 6,
-          content: '您客气了，我们该做的，请问还有其他问题可以帮到您的吗？'
-        },
-        {
-          id: 7,
-          content: '为了更好地为您服务，请对我的服务做出评价。谢谢！'
-        },
-        {
-          id: 8,
-          content: '您好，今天天气不错呀！出去爬山吗？'
+      phrasesList: sessionMessage
+    }
+  },
+  // 监听当前session/group/private/friend的变化
+  watch: {
+    sessionList: {
+      handler(newV) {
+        if (this.sessionList) {
+          this.sessionInfo =
+            copy2(
+              this.sessionList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+        } else {
+          this.sessionInfo = null
         }
-      ]
+      },
+      deep: true
+    },
+    groupList: {
+      handler(newV) {
+        if (this.groupList) {
+          this.groupInfo =
+            copy2(
+              this.groupList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+        } else {
+          this.groupList = null
+        }
+      },
+      deep: true
+    },
+    privateList: {
+      handler(newV) {
+        if (this.privateList) {
+          this.privateInfo =
+            copy2(
+              this.privateList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+        } else {
+          this.privateList = null
+        }
+      },
+      deep: true
+    },
+    friendList: {
+      handler(newV) {
+        if (this.friendList) {
+          this.friendInfo =
+            copy2(
+              this.friendList.find((e, i, arr) => {
+                return e.isSelected
+              })
+            ) || null
+        } else {
+          this.friendInfo = null
+        }
+      },
+      deep: true
     }
   },
   computed: {
-    // 当前会话对象信息
-    sessionInfo() {
-      let sessionInfo
-      if (this.sessionList) {
-        sessionInfo = this.sessionList.find((e, i, arr) => {
-          return e.isSelected
-        })
-      }
-      return sessionInfo || null
-    },
-    // 当前同伴对象信息
-    friendInfo() {
-      let friendInfo
-      if (this.friendList) {
-        friendInfo = this.friendList.find((e, i, arr) => {
-          console.log(e)
-          return e.isSelected
-        })
-      }
-      return friendInfo || null
-    },
-    // 会话用户信息 用户信息 表情是否显示  会话相关信息显示  会话聊天内容  群聊聊天内容  私聊聊天内容  锁住发送按钮  当前会话对象信息
     ...mapGetters([
-      'sUserInfo',
-      'gUserInfo',
-      'faceImgShow',
-      'sessionInfoShow',
+      'sUserInfo', // 会话用户信息
+      'gUserInfo', // 群聊用户信息
+      'faceImgShow', // 表情是否显示
+      'sessionInfoShow', // 会话相关信息显示
       'chatType',
-      'sessionList',
-      'friendList',
-      // 'sessionMsgList',
-      'locktext'
-      // 'sessionInfo'
-      // 'groupMsgList',
-      // 'privateMsgList'
+      'sessionList', // 会话列表
+      'groupList', // 群聊列表
+      'privateList', // 私聊列表
+      'friendList', // 同伴列表
+      'locktext', // 锁住发送按钮
+      'sendMsgList' // 发送的消息列表(发送中-失败)
     ])
   },
   methods: {
@@ -217,23 +216,225 @@ export default {
     },
     // 结束会话
     sessionEnd() {
-      console.log('结束会话')
+      let _data = {
+        sesid: this.sessionInfo.sesid,
+        userid: this.sUserInfo.userid
+      }
+      let data = JSON.stringify({ cmdid: 1203, data: _data })
+      // console.log('去结束会话', data)
+      this.$ws.send(data)
+    },
+    // 监听会话结束
+    listenSessionEnd() {
+      this.$wsBus.$on('1202', res => {
+        if (res.returncode === '0') {
+          let sessionInfo = this.sessionList.find((e) => {
+            return e.sesid == res.data.sesid
+          })
+          let index = this.sessionList.findIndex((e) => {
+            return e.sesid == res.data.sesid
+          })
+          this.SET_EDITSESSION({
+            index: index,
+            session: sessionInfo
+          })
+        }
+      })
+    },
+    // 监听会话/同伴消息发送——回执
+    listenMsgSend() {
+      this.$wsBus.$on('2002', res => {
+        if (res.returncode === '0') {
+          if (res.data.msgtype == SESSION_MSG) {
+            // console.log('发送会话消息回执', res)
+            // 消息状态改变——发送成功
+            this.sessionInfo.messageList.find(e => {
+              return e.msgid == res.data.msgkey
+            }).sendStatus = MSG_SUC
+            let sessionIndex = this.sessionList.findIndex((e, i, arr) => {
+              return this.sessionInfo.sesid == e.sesid
+            })
+            // 更新该会话信息
+            this.SET_EDITSESSION({
+              index: sessionIndex,
+              session: this.sessionInfo
+            })
+          }
+          if (res.data.msgtype == FRIEND_MSG) {
+            // console.log('发送同伴消息回执', res, this.friendInfo.messageList)
+            // console.log(this.friendInfo.messageList.find(e => {
+            //   return e.msgid == res.data.msgkey
+            // }))
+            // 消息状态改变——发送成功
+            this.friendInfo.messageList.find(e => {
+              return e.msgid == res.data.msgkey
+            }).sendStatus = MSG_SUC
+            let friendIndex = this.friendList.findIndex((e, i, arr) => {
+              return this.friendInfo.userid == e.userid
+            })
+            // 更新该同伴信息
+            this.SET_EDITFRIEND({
+              index: friendIndex,
+              friend: this.friendInfo
+            })
+          }
+          // 消息清空
+          this.$refs.editdiv.clearText()
+          // 消息发送状态管理堆——清除该消息
+          let index = this.sendMsgList.findIndex(e => {
+            return e.msgid == res.data.msgid
+          })
+          this.SET_DELETESENDMSG({
+            index: index
+          })
+          // 滚动到底部
+          setTimeout(() => {
+            this.$emit('scrollToBottom')
+          }, 20)
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
     },
     // 发送消息
-    send(mediatype, msgbody) {
-      // 未选中聊天对象
-      console.log(this.chatType, this.friendInfo)
+    send(message) {
+      // console.log(this.chatType, this.friendInfo)
+      // 发送会话/同伴消息
       if (
-        (this.chatType == SESSION && !this.sessionInfo) ||
-        (this.chatType == GROUP && !this.groupInfo) ||
-        (this.chatType == PRIVATE && !this.privateInfo) ||
-        (this.chatType == FRIEND && !this.friendInfo)
+        this.chatType == SESSION_CHATTYPE ||
+        this.chatType == FRIEND_CHATTYPE
+      ) {
+        let data = JSON.stringify({ cmdid: 2001, data: message })
+        // console.log('我发送的会话/同伴消息', data)
+        this.$ws.send(data)
+      }
+      // 发送群聊消息
+      if (this.chatType == GROUP_CHATTYPE) {
+        GROUPAPI.gGoMsg(message)
+          .then(res => {
+            if (res.data.code === '0000') {
+              let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+              // console.log('群聊消息发送成功', resData)
+              // 消息初始化
+              this.$refs.editdiv.clearText()
+              this.atList = []
+              // 我在该群发送的消息+1——用来处理未读消息
+              if (!this.groupInfo.unReadInfo.myMsgNum) {
+                this.groupInfo.unReadInfo.myMsgNum = 1
+              } else {
+                this.groupInfo.unReadInfo.myMsgNum += 1
+              }
+              // 消息状态改变——发送成功
+              this.groupInfo.messageList.find(e => {
+                return e.msgid == message.msgkey
+              }).sendStatus = MSG_SUC
+              let groupIndex = this.groupList.findIndex((e, i, arr) => {
+                return this.groupInfo.teamid == e.teamid
+              })
+              // 更新该群信息
+              this.SET_EDITGROUP({
+                index: groupIndex,
+                group: this.groupInfo
+              })
+              // 消息发送状态管理堆——清除该消息
+              let index = this.sendMsgList.findIndex(e => {
+                return e.msgid == message.msgkey
+              })
+              this.SET_DELETESENDMSG({
+                index: index
+              })
+              // 滚动到底部
+              setTimeout(() => {
+                this.$emit('scrollToBottom')
+              }, 20)
+            } else {
+              // 消息状态改变——发送失败
+              this.groupInfo.messageList.find(e => {
+                return e.msgid == message.msgkey
+              }).sendStatus = MSG_FAI
+              // // 文件上传失败
+              // this.$refs.layer.show(res.data.message)
+            }
+          })
+          .catch(e => {
+            // 消息状态改变——发送失败
+            this.groupInfo.messageList.find(e => {
+              return e.msgid == message.msgkey
+            }).sendStatus = MSG_FAI
+            // this.$refs.layer.show(e)
+          })
+      }
+      // 发送私聊消息
+      if (this.chatType == PRIVATE_CHATTYPE) {
+        GROUPAPI.gGoPrivateMsg(message)
+          .then(res => {
+            if (res.data.code === '0000') {
+              let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+              // console.log('私聊消息发送成功', resData)
+              // 消息初始化
+              this.$refs.editdiv.clearText()
+              // 我在该私聊发送的消息+1——用来处理未读消息
+              if (!this.privateInfo.unReadInfo.myMsgNum) {
+                this.privateInfo.unReadInfo.myMsgNum = 1
+              } else {
+                this.privateInfo.unReadInfo.myMsgNum += 1
+              }
+              // 消息状态改变——发送成功
+              this.privateInfo.messageList.find(e => {
+                return e.msgid == message.msgkey
+              }).sendStatus = MSG_SUC
+              let privateIndex = this.privateList.findIndex((e, i, arr) => {
+                return this.privateInfo.id == e.id
+              })
+              // 更新该私聊信息
+              this.SET_EDITPRIVATE({
+                index: privateIndex,
+                private: this.privateInfo
+              })
+              // 消息发送状态管理堆——清除该消息
+              let index = this.sendMsgList.findIndex(e => {
+                return e.msgid == message.msgkey
+              })
+              this.SET_DELETESENDMSG({
+                index: index
+              })
+              // 滚动到底部
+              setTimeout(() => {
+                this.$emit('scrollToBottom')
+              }, 20)
+            } else {
+              // 消息状态改变——发送失败
+              this.privateInfo.messageList.find(e => {
+                return e.msgid == message.msgkey
+              }).sendStatus = MSG_FAI
+              // 文件上传失败
+              // this.$refs.layer.show(res.data.message)
+            }
+          })
+          .catch(e => {
+            // 消息状态改变——发送失败
+            this.privateInfo.messageList.find(e => {
+              return e.msgid == message.msgkey
+            }).sendStatus = MSG_FAI
+            // this.$refs.layer.show(e)
+          })
+      }
+    },
+    // 准备消息发送
+    sendFirst(mediatype, msgbody) {
+      // 未选中聊天对象
+      if (
+        (this.chatType == SESSION_CHATTYPE && !this.sessionInfo) ||
+        (this.chatType == GROUP_CHATTYPE && !this.groupInfo) ||
+        (this.chatType == PRIVATE_CHATTYPE && !this.privateInfo) ||
+        (this.chatType == FRIEND_CHATTYPE && !this.friendInfo)
       ) {
         this.$refs.layer.show('请选择聊天对象!')
         return false
       }
+      // 会话已结束，不能聊天
       if (
-        this.chatType == SESSION &&
+        this.chatType == SESSION_CHATTYPE &&
         this.sessionInfo &&
         this.sessionInfo.status == '1'
       ) {
@@ -254,7 +455,7 @@ export default {
         mediatype = '1'
       }
       // 若是文本/表情类型——把表情img转化成文字
-      if (mediatype === '1') {
+      if (mediatype == '1') {
         let div = document.createElement('div')
         div.innerHTML = msgbody
         Array.from(div.children).forEach(img => {
@@ -269,25 +470,26 @@ export default {
         msgbody = div.innerHTML.replace(/\s/g, '')
         // console.log('处理完表情', msgbody)
       }
-      // console.log('发送消息——chatType', this.chatType)
-      if (this.chatType === SESSION) {
-        // 会话
+      // 发送会话消息
+      if (this.chatType === SESSION_CHATTYPE) {
+        // 要发送的会话消息
         let message = {
           fromid: this.sUserInfo.userid,
           toid: this.sessionInfo.guestsid,
           sesid: this.sessionInfo.sesid,
-          msgtype: 5,
+          msgtype: SESSION_MSG,
           mediatype: mediatype,
           msgkey: uuid(32, 16), // 32位随机数
           msgbody: msgbody,
           lastMsgid: '', // 重发消息时，带上上一条消息的msgid(不传/msgid)
           resend: '' // 是否重发消息(不传/String(true))
         }
-        // 准备去展示消息
+        // 要展示的会话消息
         let goMyMsg = {
-          // id: message.toid, // 群id
+          sendStatus: MSG_ING,
+          msgid: message.msgkey,
           fromid: this.sUserInfo.userid,
-          messageType: 5, // 消息类型(2群聊/3私聊/5会话)
+          messageType: SESSION_MSG, // 消息类型(2群聊/3私聊/5会话)
           name: this.sUserInfo.nickname, // 发送者用户名
           headurl: this.sUserInfo.headurl, // 发送者头像
           msgbody: message.msgbody, // 消息内容
@@ -296,88 +498,95 @@ export default {
           sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss'), // 发送消息的时间
           lastMsgid: '', // 重发消息时，带上上一条消息的msgid(不传/msgid)
           resend: '' // 是否重发消息(不传/String(true))
+          // id: message.toid, // 群id
         }
-
-        // 更新消息列表——展示消息
-        let sessionInfo = copy2(this.sessionInfo)
-        sessionInfo.messageList.push(goMyMsg)
-        let sessionList = copy2(this.sessionList)
-        let index = this.sessionList.findIndex((e, i, arr) => {
-          return sessionInfo.sesid == e.sesid
+        // 更新会话
+        this.sessionInfo.messageList.push(goMyMsg)
+        let sessionIndex = this.sessionList.findIndex((e, i, arr) => {
+          return this.sessionInfo.sesid == e.sesid
         })
-        // 更新会话列表
         this.SET_EDITSESSION({
-          index: index,
-          session: sessionInfo
+          index: sessionIndex,
+          session: this.sessionInfo
         })
-        let data = JSON.stringify({ cmdid: 2001, data: message })
-        console.log('我发送的会话消息', data)
-        this.$ws.send(data)
-      } else if (this.chatType === FRIEND) {
-        // 同伴
+        // 消息发送状态管理堆
+        this.SET_ADDSENDMSG({
+          msgid: message.msgkey,
+          sendMsg: message,
+          showMsg: goMyMsg
+        })
+        this.send(message)
+      }
+      // 发送同伴消息
+      if (this.chatType === FRIEND_CHATTYPE) {
+        // 要去发送的消息
         let message = {
           fromid: this.sUserInfo.userid,
           toid: this.friendInfo.userid,
-          msgtype: 1,
+          msgtype: FRIEND_MSG,
           mediatype: mediatype,
           msgkey: uuid(32, 16), // 32位随机数
           msgbody: msgbody
         }
-        // 准备去展示消息
+        // 要去展示的消息
         let goMyMsg = {
+          sendStatus: MSG_ING,
+          msgid: message.msgkey,
           fromid: this.sUserInfo.userid,
-          messageType: 1, // 消息类型(1同伴2群聊/3私聊/5会话)
+          messageType: FRIEND_MSG, // 消息类型(1同伴2群聊/3私聊/5会话)
           name: this.sUserInfo.nickname, // 发送者用户名
           headurl: this.sUserInfo.headurl, // 发送者头像
           msgbody: message.msgbody, // 消息内容
           mediatype: Number(message.mediatype), // 消息内容类型(1文本表情/3图片url/5推文)
           sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss') // 发送消息的时间
         }
-
-        // 更新消息列表——展示消息
-        let friendInfo = copy2(this.friendInfo)
-        friendInfo.messageList.push(goMyMsg)
-        let friendList = copy2(this.friendList)
-        let index = this.friendList.findIndex((e, i, arr) => {
-          return friendInfo.userid == e.userid
+        // 更新同伴信息
+        this.friendInfo.messageList.push(goMyMsg)
+        let friendIndex = this.friendList.findIndex((e, i, arr) => {
+          return this.friendInfo.userid == e.userid
         })
-        // 更新同伴列表
         this.SET_EDITFRIEND({
-          index: index,
-          friend: friendInfo
+          index: friendIndex,
+          friend: this.friendInfo
         })
-        console.log(this.chatType)
-        // console.log(index, friendInfo, this.friendInfo, this.friendList)
-        let data = JSON.stringify({ cmdid: 2001, data: message })
-        console.log('我发送的同伴消息', data)
-        this.$ws.send(data)
-      } else if (this.chatType === GROUP) {
+        // 消息发送状态管理堆
+        this.SET_ADDSENDMSG({
+          msgid: message.msgkey,
+          sendMsg: message,
+          showMsg: goMyMsg
+        })
+        this.send(message)
+      }
+      // 发送群消息
+      if (this.chatType === GROUP_CHATTYPE) {
         // @at列表处理
         if (this.atList.length > 0) {
           this.atList.forEach((e, i, arr) => {
             if (msgbody.indexOf(`@${e.nickname}`) < 0) {
-              console.log('没找到@', e.nickname)
+              // console.log('没找到@', e.nickname)
               this.atList.splice(i, 1)
             } else {
-              console.log('@全都找到')
+              // console.log('@全都找到')
             }
           })
         }
-        // console.log('进入发送了', msgbody)
-        // 消息内容
+        // 要去发送的消息
         let message = {
+          atMsg: this.atList && this.atList.length > 0 ? '1' : '0',
           fromid: this.gUserInfo.userId, // 发送者id
           toid: this.groupInfo.teamid, // 群id
-          msgtype: '2', // 消息类型(2群聊/3私聊/5会话)
+          msgtype: String(GROUP_MSG), // 消息类型(2群聊/3私聊/5会话)
           mediatype: mediatype, // 消息内容类型(1文本表情/3图片url/5推文)
           sendtime: Date.now(), // 发送消息时间(getTime)
           msgbody: msgbody, // 消息内容
           atlist: this.atList, // at列表
           msgkey: uuid(32, 16) // 32位随机数
         }
-        // console.log('去发送了')
-        // 去展示消息
+        // 要去展示的消息
         let goMyMsg = {
+          sendStatus: MSG_ING, // 消息发送状态
+          msgid: message.msgkey,
+          atMsg: message.atMsg,
           id: message.toid, // 群id
           fromid: this.gUserInfo.userId,
           messageType: message.msgtype, // 消息类型(2群聊/3私聊/5会话)
@@ -388,55 +597,39 @@ export default {
           recall: '0', // 是否撤回(0正常/1已撤回)
           sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss') // 发送消息的时间
         }
-        // let resData = JSON.parse(this.$crypto.decrypt(res.data.body)
-        // console.log(resData)
-        // this.groupTeamList = JSON.parse(resData)
-        // console.log(res)
-        // let newMessage = copy(this.groupMsgList)
-        // this.SET_GROUPMSG({
-        //   groupMsgList: newMessage
-        // })
-        this.groupMsgList.push(goMyMsg)
-        console.log('去发送的消息内容', message)
-        // 去发送消息
-        GROUPAPI.gGoMsg(message)
-          .then(res => {
-            if (res.data.code === '0000') {
-              console.log(
-                '群聊消息发送成功',
-                JSON.parse(this.$crypto.decrypt(res.data.body))
-              )
-              // 消息初始化
-              this.$refs.editdiv.clearText()
-              this.atList = []
-              // 我在该群发送的消息+1——用来处理未读消息
-              this.groupMyMsgNum[this.groupInfo.teamid].my += 1
-            } else {
-              // 文件上传失败
-              this.$refs.layer.show(res.data.message)
-            }
-          })
-          .catch(e => {
-            this.$refs.layer.show(e)
-          })
-        // this.message = ''
-      } else if (this.chatType === PRIVATE) {
-        console.log('私聊', this.privateInfo)
-        // console.log('进入发送了', msgbody)
-        // 消息内容
+        // 更新群信息
+        this.groupInfo.messageList.push(copy2(goMyMsg))
+        let groupIndex = this.groupList.findIndex((e, i, arr) => {
+          return this.groupInfo.teamid == e.teamid
+        })
+        this.SET_EDITGROUP({
+          index: groupIndex,
+          group: this.groupInfo
+        })
+        // 消息发送状态管理堆
+        this.SET_ADDSENDMSG({
+          msgid: message.msgkey,
+          sendMsg: message,
+          showMsg: goMyMsg
+        })
+        this.send(message)
+      }
+      // 发送私聊消息
+      if (this.chatType === PRIVATE_CHATTYPE) {
+        // 要发送的消息
         let message = {
           fromid: this.gUserInfo.userId, // 发送者id
           toid: this.privateInfo.id, // 接收者id
-          msgtype: '3', // 消息类型(2群聊/3私聊)
+          msgtype: String(PRIVATE_MSG), // 消息类型(2群聊/3私聊)
           mediatype: mediatype, // 消息内容类型(1文本表情/3图片url/5推文)
           sendtime: Date.now(), // 发送消息时间(getTime)
           msgbody: msgbody, // 消息内容
           msgkey: uuid(32, 16) // 32位随机数
         }
-        // console.log('去发送了')
-        // 去展示消息
+        // 要展示的消息
         let goMyMsg = {
-          // id: message.toid, // 群id
+          sendStatus: MSG_ING, // 消息发送状态
+          msgid: message.msgkey,
           fromid: this.gUserInfo.userId,
           messageType: message.msgtype, // 消息类型(2群聊/3私聊)
           nickname: this.gUserInfo.nickname, // 发送者用户名
@@ -445,40 +638,24 @@ export default {
           mediatype: Number(message.mediatype), // 消息内容类型(1文本表情/3图片url/5推文)
           recall: '0', // 是否撤回(0正常/1已撤回)
           sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss') // 发送消息的时间
+          // id: message.toid, // 群id
         }
-        // let resData = JSON.parse(this.$crypto.decrypt(res.data.body)
-        // console.log(resData)
-        // this.groupTeamList = JSON.parse(resData)
-        // console.log(res)
-        // let newMessage = copy(this.groupMsgList)
-        console.log(message, goMyMsg)
-        this.privateMsgList.push(goMyMsg)
-        // this.SET_GROUPMSG({
-        //   groupMsgList: newMessage
-        // })
-        // 去发送消息
-        GROUPAPI.gGoPrivateMsg(message)
-          .then(res => {
-            console.log(res)
-            if (res.data.code === '0000') {
-              let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
-              console.log(
-                '私聊消息发送成功',
-                JSON.parse(this.$crypto.decrypt(res.data.body))
-              )
-              // 消息初始化
-              this.$refs.editdiv.clearText()
-              // 我在该私聊发送的消息+1——用来处理未读消息
-              // console.log(this.privateMyMsgNum, this.privateInfo.id)
-              this.privateMyMsgNum[this.privateInfo.id].my += 1
-            } else {
-              // 文件上传失败
-              this.$refs.layer.show(res.data.message)
-            }
-          })
-          .catch(e => {
-            this.$refs.layer.show(e)
-          })
+        // 更新私聊信息
+        this.privateInfo.messageList.push(goMyMsg)
+        let privateIndex = this.privateList.findIndex((e, i, arr) => {
+          return this.privateInfo.id == e.id
+        })
+        this.SET_EDITPRIVATE({
+          index: privateIndex,
+          private: this.privateInfo
+        })
+        // 消息发送状态管理堆
+        this.SET_ADDSENDMSG({
+          msgid: message.msgkey,
+          sendMsg: message,
+          showMsg: goMyMsg
+        })
+        this.send(message)
       }
     },
     handleFileChange() {},
@@ -487,11 +664,11 @@ export default {
       // console.log(9999)
     },
     // 会话——聊天摘要/聊天记录 打开
-    sessionInfoOpen() {
-      this.SET_SESSIONINFO({
-        sessionInfoShow: !this.sessionInfoShow
-      })
-    },
+    // sessionInfoOpen() {
+    //   this.SET_SESSIONINFO({
+    //     sessionInfoShow: !this.sessionInfoShow
+    //   })
+    // },
     // 监听截图成功后去上传
     listenCaptureImg() {
       this.$electron.ipcRenderer.on('captureImg', (e, imgSrc, scale) => {
@@ -529,7 +706,7 @@ export default {
     uploadSuccess(res) {
       // console.log('图片上传成功', res)
       // 发消息
-      this.send('3', res)
+      this.sendFirst('3', res)
     },
     // 图片上传失败——提示
     uploadError(msg) {
@@ -537,7 +714,7 @@ export default {
     },
     // @ta
     atTa(data) {
-      console.log('@ta', data)
+      // console.log('@ta', data)
       // 消息加入
       this.message += `@${data.nickname}`
       // at列表加入
@@ -546,14 +723,15 @@ export default {
     ...mapMutations({
       SET_FACEIMG: 'SET_FACEIMG', // 表情是否显示
       SET_SESSIONINFO: 'SET_SESSIONINFO', // 会话相关信息显示
-      SET_SESSIONMSG: 'SET_SESSIONMSG', // 会话消息列表
-      SET_GROUPMSG: 'SET_GROUPMSG', // 群聊消息列表
-      SET_PRIVATEMSG: 'SET_PRIVATEMSG', // 私聊消息列表
       SET_SESMSGLIST: 'SET_SESMSGLIST', // 当前会话消息设置
       SET_SESSIONLIST: 'SET_SESSIONLIST', // 更新会话列表
-      SET_EDITSESSION: 'SET_EDITSESSION',  // 修改指定会话
+      SET_EDITSESSION: 'SET_EDITSESSION', // 修改指定会话
       SET_FRIENDLIST: 'SET_FRIENDLIST', // 更新同伴列表
-      SET_EDITFRIEND: 'SET_EDITFRIEND'  // 修改指定同伴
+      SET_EDITFRIEND: 'SET_EDITFRIEND', // 修改指定同伴
+      SET_EDITGROUP: 'SET_EDITGROUP',
+      SET_EDITPRIVATE: 'SET_EDITPRIVATE',
+      SET_ADDSENDMSG: 'SET_ADDSENDMSG',
+      SET_DELETESENDMSG: 'SET_DELETESENDMSG'
     })
   },
   components: {

@@ -83,7 +83,6 @@ const router = new Router({
 
 // 路由加载完成后
 router.afterEach(to => {
-  console.log('嘻嘻嘻')
   // store.commit('loading', {
   //   loading: false
   // })

@@ -9,7 +9,7 @@
             v-show="userList && userList.length > 0"
             class="arrow-d"
             src="./imgs/arrow_d.png"
-            @click.stop="() => {this.userListShow = !this.userListShow}"
+            @click.stop="() => {userListShow = !userListShow}"
           />
           <ul class="user-list" v-show="userListShow">
             <li v-for="(item, index) in userList" :key="item" @click="changeUser(item)">
@@ -36,7 +36,10 @@
       <div class="btn logout" @click="() => {this.$electron.ipcRenderer.send('close')}">退出</div>
       <div class="tips">
         <p>Copyright© 浙江金融交易中心股份有限公司</p>
-        <p class="update" @click="() => {this.$electron.ipcRenderer.send('updateStatus')}">综合客服系统 更新说明</p>
+        <p
+          class="update"
+          @click="() => {this.$electron.ipcRenderer.send('updateStatus')}"
+        >综合客服系统 更新说明</p>
       </div>
     </div>
     <layer-content ref="layer"></layer-content>
@@ -60,6 +63,9 @@ export default {
     this.checkAccount()
   },
   mounted() {
+    this.$electron.ipcRenderer.on('sessionReady', (event, arg) => {
+      this.getUserInfo()
+    })
     // 监听会话登录结果
     this.ListenSessionLogin()
   },
@@ -84,20 +90,20 @@ export default {
       groupLoginParams: {
         credential: '', // 用户名
         password: '' // 密码
-      }
+      },
+      // 群聊登录返回的信息
+      groupUserInfo: null
       // 用户列表
       // userList: ['zj001', 'zj002', 'zj003']
     }
   },
   computed: {
     ...mapGetters([
-      // 账号列表  array
-      'userList',
-      // 是否记住密码 boolean
-      'rememberPsw',
-      // 记住的登录密码 string
-      'loginPsw',
-      'sUserInfo'
+      'userList', // 账号列表  array
+      'rememberPsw', // 是否记住密码 boolean
+      'loginPsw', // 记住的登录密码 string
+      'sUserInfo',
+      'session' // 登录session权限
     ])
   },
   methods: {
@@ -132,7 +138,7 @@ export default {
     },
     // 监听会话登录结果
     ListenSessionLogin() {
-      this.$wsBus.$on('1002', (res) => {
+      this.$wsBus.$on('1002', res => {
         if (res.returncode === '0') {
           let sUserInfo = copy(res.data)
           // 客服状态默认为在线状态
@@ -142,11 +148,11 @@ export default {
           this.SET_SUSERINFO({
             sUserInfo: sUserInfo
           })
-          console.log('会话用户信息', this.sUserInfo)
+          // console.log('会话用户信息', this.sUserInfo)
           this.loginSuccess()
           this.isLoginOk -= 1
         } else {
-          this.loginOk -= 1
+          this.isLoginFail()
           this.isLoginOk -= 1
           this.$refs.layer.show(res.returnmsg)
         }
@@ -159,56 +165,41 @@ export default {
           // 登录成功
           if (res.data.code === '0000') {
             var gUserInfo = JSON.parse(this.$crypto.decrypt(res.data.body))
-            // 去获取用户详情
-            GROUPAPI.gUserInfo({
-              userid: gUserInfo.userId,
-              fundAccount: gUserInfo.fundAccount
-            })
-              .then(res => {
-                if (res.data.code === '0000') {
-                  console.log('详细用户信息', res)
-                  var userDetailInfo = JSON.parse(
-                    this.$crypto.decrypt(res.data.body)
-                  )
-                  console.log('获取用户信息成功', gUserInfo)
-                  gUserInfo.cookie = userDetailInfo.cookie
-                  gUserInfo.headurl = userDetailInfo.headurl
-                  gUserInfo.kxcode = userDetailInfo.kxcode
-                  gUserInfo.lv = userDetailInfo.lv
-                  gUserInfo.nickname = userDetailInfo.nickname
-                  this.SET_GUSERINFO({
-                    gUserInfo: gUserInfo
+            // console.log('登录成功,去获取用户信息', gUserInfo)
+            this.groupUserInfo = gUserInfo
+            let vm = this
+            this.$electron.remote.session.defaultSession.cookies.get(
+              {},
+              function(e, cookies) {
+                if (cookies && cookies.length > 0) {
+                  let session = cookies.find(e => {
+                    return e.name == 'SESSIONID'
                   })
-                  this.loginSuccess()
-                } else {
-                  // 查询用户信息失败
-                  this.$refs.layer.show(res.data.message)
+                  vm.$electron.ipcRenderer.send('getSession', session)
                 }
-              })
-              .catch(res => {
-                this.$refs.layer.show(res)
-              })
-              this.isLoginOk -= 1
+              }
+            )
           } else {
-            this.loginOk -= 1
-            this.isLoginOk -= 1
+            this.isLoginFail()
             // 登录失败
             this.$refs.layer.show(res.data.message)
           }
         })
         .catch(res => {
-          this.loginOk -= 1
-          this.isLoginOk -= 1
+          this.isLoginFail()
           this.$refs.layer.show(res)
         })
     },
+
     // 登录成功执行的回调函数
     loginSuccess() {
       // 另一边登录请求还未完成
       if (this.loginOk === 0) {
         this.loginOk += 1
-      } else if (this.loginOk === 1) {
         // 另一边登录请求成功
+      } else if (this.loginOk === 1) {
+        this.loginOk = 0 // 初始化
+        this.isLoginOk = 0 // 初始化
         let userList = copy(this.userList)
         // 如果userList中不存在当前登录账户，就把当前登录账户记录缓存，用于用户名下拉框
         if (!Array.isArray(userList)) {
@@ -229,17 +220,46 @@ export default {
             loginPsw: this.groupLoginParams.password
           })
         }
-        console.log(this.$electron.remote.getCurrentWindow().getBounds())
-        this.$router.push({ path: 'main' })
-        this.$electron.remote.getCurrentWindow().setBounds({ x: 140, y: 98, width: 1000, height: 800 })
+        // console.log(this.$electron.remote.getCurrentWindow().getBounds())
+        // this.$router.push({ path: 'main' })
+        // this.$electron.remote.getCurrentWindow().setBounds({ x: 140, y: 98, width: 1000, height: 800 })
         // 打开主界面
-        // this.$electron.ipcRenderer.send('login')
+        this.$electron.ipcRenderer.send('login')
       }
     },
+    // 请求用户信息
+    getUserInfo() {
+      // 去获取用户详情
+      GROUPAPI.gUserInfo({
+        userid: this.groupUserInfo.userId,
+        fundAccount: this.groupUserInfo.fundAccount
+      })
+        .then(res => {
+          if (res.data.code === '0000') {
+            var userDetailInfo = JSON.parse(this.$crypto.decrypt(res.data.body))
+            // console.log('获取用户信息成功', userDetailInfo)
+            let gUserInfo = copy2(Object.assign(userDetailInfo, this.groupUserInfo))
+            // console.log('完整用户信息', gUserInfo)
+            this.SET_GUSERINFO({
+              gUserInfo: gUserInfo
+            })
+            this.loginSuccess()
+            this.isLoginOk -= 1
+          } else {
+            // 查询用户信息失败
+            this.$refs.layer.show(res.data.message)
+            this.isLoginOk -= 1
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+          this.isLoginOk -= 1
+        })
+    },
     // 退出程序
-    // close() {
-    //   this.$electron.ipcRenderer.send('close', '哈达的')
-    // },
+    close() {
+      this.$electron.ipcRenderer.send('close')
+    },
     // 改变 登录用户
     changeUser(item) {
       this.groupLoginParams.credential = item
@@ -256,10 +276,6 @@ export default {
         userList: userList
       })
     },
-    // 用户登录列表——显隐
-    // userListOnOff() {
-      
-    // },
     // 是否记住密码——状态记录
     remember() {
       this.SET_REMEMBERPSW({
@@ -284,6 +300,14 @@ export default {
       // 检查是否有已登录过的账户-账户自动输入
       if (this.userList && this.userList.length > 0) {
         this.groupLoginParams.credential = this.userList[0]
+      }
+    },
+    // 登录请求失败时
+    isLoginFail() {
+      if (this.loginOk == -1) {
+        this.loginOk = 0
+      } else {
+        this.loginOk -= 1
       }
     },
     ...mapMutations({

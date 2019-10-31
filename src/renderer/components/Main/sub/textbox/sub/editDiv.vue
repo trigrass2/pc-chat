@@ -48,7 +48,7 @@ export default {
       dom.focus()
       // 当前获得焦点的元素非指定dom, 直接把html追加在最后
       // console.log(window.getSelection().getRangeAt(0))
-        console.log(document.activeElement)
+        // console.log(document.activeElement)
       if (dom !== document.activeElement) {
         //     // console.log(dom.innerHTML)
         dom.innerHTML = dom.innerHTML + html

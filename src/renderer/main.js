@@ -7,13 +7,25 @@ import router from './router'
 import store from './store'
 import Viewer from 'v-viewer'
 import 'viewerjs/dist/viewer.css'
-import { wsBus } from 'api/websocket/eventBus.js';
+import ReconnectingWebSocket from 'reconnecting-websocket'
+import { wsBus } from 'api/websocket/eventBus.js'
 import CryptoJS from 'api/crypto'
+// import { protocol } from 'electron'
 
 // 自定义的全局组件
-import layerContent from './base/layer'; // 弹框插件
-import spinnerContent from './base/spinner'; // 加载中插件
-import imgUploader from './base/imgUploader'; // 上传图片插件
+import layerContent from './base/layer' // 弹框插件
+import spinnerContent from './base/spinner' // 加载中插件
+import imgUploader from './base/imgUploader' // 上传图片插件
+
+// console.log('123213', protocol)
+
+// protocol.registerSchemesAsPrivileged([{
+//     scheme: 'app',
+//     privileges: {
+//         standard: true,
+//         secure: true
+//     }
+// }])
 
 Vue.config.productionTip = false
 
@@ -27,7 +39,8 @@ Vue.crypto = Vue.prototype.$crypto = CryptoJS
 // http服务
 Vue.http = Vue.prototype.$http = axios
 // websocket服务
-let websocket = new WebSocket('ws://10.18.13.159:9011/websocket')
+// let websocket = new WebSocket('ws://10.18.13.159:9011/websocket')
+let websocket = new ReconnectingWebSocket('ws://10.18.13.159:9011/websocket')
 Vue.ws = Vue.prototype.$ws = websocket
 Vue.wsBus = Vue.prototype.$wsBus = wsBus
 
@@ -35,10 +48,16 @@ Vue.wsBus = Vue.prototype.$wsBus = wsBus
 websocket.onopen = function() {
     console.log('websocket open')
 }
-// // websocket关闭
-// websocket.onclose = function() {
-//     console.log('websocket close');
-// }
+// websocket关闭
+websocket.onclose = function(e) {
+    console.log('websocket close')
+    wsBus.$emit(`8888`)
+}
+// websocket出错
+websocket.onerror = function(e) {
+    console.log(e)
+    console.log('websocket error')
+}
 
 // 图片预览-配置
 Vue.use(Viewer, {

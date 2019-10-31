@@ -6,7 +6,7 @@
     <div ref="size" id="js-size-info" class="size-info"></div>
     <div ref="toolbar" id="js-toolbar" class="toolbar">
       <div class="iconfont icon-zhongzhi" id="js-tool-reset" @click="reset"></div>
-      <div class="iconfont icon-xiazai" id="js-tool-save" @click="save"></div>
+      <!-- <div class="iconfont icon-xiazai" id="js-tool-save" @click="save"></div> -->
       <div class="iconfont icon-guanbi" id="js-tool-close" @click="close"></div>
       <div class="iconfont icon-duihao" id="js-tool-ok" @click="ok"></div>
     </div>
@@ -31,7 +31,7 @@ const $btnSave = document.getElementById('js-tool-save')
 const $btnReset = document.getElementById('js-tool-reset')
 export default {
   created() {
-    console.log($canvas, $bg, $sizeInfo)
+    // console.log($canvas, $bg, $sizeInfo)
     // 截图声音
     this.audio = new Audio()
     this.audio.src = require('./audio/capture.mp3')
@@ -55,7 +55,7 @@ export default {
         if (!this.capture.selectRect) {
           return
         }
-        console.log('图片截取进入1')
+        // console.log('图片截取进入1')
         // 获取图片地址
         let url = this.capture.getImageUrl()
         let scale = this.capture.getImageScale()
@@ -65,7 +65,7 @@ export default {
           window.close()
           // this.$electron.ipcRenderer.send('close')
         }
-        console.log('图片截取进入2')
+        // console.log('图片截取进入2')
         // clipboard模块提供方法来供复制和粘贴操作
         this.$electron.clipboard.writeImage(this.$electron.nativeImage.createFromDataURL(url))
         this.$electron.ipcRenderer.send('capture-screen', {
@@ -73,7 +73,7 @@ export default {
           url,
           scale
         })
-        console.log('图片截取进入3')
+        // console.log('图片截取进入3')
     },
     // 重置选区
     reset() {

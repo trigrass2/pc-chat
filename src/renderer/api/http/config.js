@@ -11,7 +11,12 @@ export const formData = {
     }
   ]
 }
-export const url = '/api/service.do'
+
+export const testUrl = {
+  groupChat: process.env.NODE_ENV === 'development' ? '/api/service.do' : 'http://10.18.13.159:18080/api/service.do',
+  webkx: process.env.NODE_ENV === 'development' ? '' : 'http://fwhtest-112.zjfae.com'
+}
+
 export const commonParams = {
   version: '1.0.0', // 版本号
   channel: '100001', // 渠道

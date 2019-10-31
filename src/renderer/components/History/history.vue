@@ -146,7 +146,7 @@ export default {
         })
       })
       item.isSelected = true
-      console.log(item)
+      // console.log(item)
       // 请求消息数据
       if (item.sesid) {
         this.getSessionHistory(item)
