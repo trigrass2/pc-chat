@@ -194,10 +194,10 @@ export default {
     // 登录成功执行的回调函数
     loginSuccess() {
       // 另一边登录请求还未完成
-      if (this.loginOk === 0) {
+      if (this.loginOk == 0) {
         this.loginOk += 1
         // 另一边登录请求成功
-      } else if (this.loginOk === 1) {
+      } else if (this.loginOk == 1) {
         this.loginOk = 0 // 初始化
         this.isLoginOk = 0 // 初始化
         let userList = copy(this.userList)
@@ -206,7 +206,7 @@ export default {
           userList = []
         }
         let isHave = userList.find((e, i, arr) => {
-          return e === this.groupLoginParams.credential
+          return e == this.groupLoginParams.credential
         })
         if (!isHave) {
           userList.push(this.groupLoginParams.credential)
@@ -269,7 +269,7 @@ export default {
     deleteUser(item) {
       let userList = JSON.parse(JSON.stringify(this.userList))
       let index = userList.findIndex((e, i, arr) => {
-        return e === item
+        return e == item
       })
       userList.splice(index, 1)
       this.SET_USERLIST({

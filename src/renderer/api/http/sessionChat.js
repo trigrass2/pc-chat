@@ -9,7 +9,66 @@ export function sessionList(data) {
   const url = `${kxUrl}/webkx/api/loadCurrentSessionList.php`
   const reqData = {
     userid: userid,
-    status: 1 // 1结束/0未结束
+    status: '' // 1结束/0未结束
+  }
+  
+  return axios.post(url, reqData, formData).then(res => {
+    return Promise.resolve(res)
+  })
+}
+
+// 加载摘要
+export function loadSummary(data) {
+  const url = `${kxUrl}/webkx/api/loadUserSummary.php`
+  const reqData = {
+    userid: userid,
+    guestsid: data.guestsid // 来宾id
+  }
+  
+  return axios.post(url, reqData, formData).then(res => {
+    return Promise.resolve(res)
+  })
+}
+
+// 新增摘要
+export function addSummary(data) {
+  const url = `${kxUrl}/webkx/api/addUserSummary.php`
+  const reqData = {
+    userid: userid,
+    guestsid: data.guestsid,
+    content: data.content
+  }
+  
+  return axios.post(url, reqData, formData).then(res => {
+    return Promise.resolve(res)
+  })
+}
+
+// 编辑摘要
+export function editSummary(data) {
+  const url = `${kxUrl}/webkx/api/updateUserSummary.php`
+  const reqData = {
+    userid: userid,
+    guestsid: data.guestsid,
+    content: data.content,
+    id: data.id,
+    status: "1"
+  }
+  
+  return axios.post(url, reqData, formData).then(res => {
+    return Promise.resolve(res)
+  })
+}
+
+// 删除摘要
+export function delSummary(data) {
+  const url = `${kxUrl}/webkx/api/updateUserSummary.php`
+  const reqData = {
+    userid: userid,
+    guestsid: data.guestsid,
+    content: data.content,
+    id: data.id,
+    status: "0",
   }
   
   return axios.post(url, reqData, formData).then(res => {

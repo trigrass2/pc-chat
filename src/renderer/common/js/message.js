@@ -13,7 +13,7 @@ export class SessionMessage {
   }
 }
 
-export class FiendMessage {
+export class FriendMessage {
   constructor(message) {
     this.fromid = message.fromid
     this.mediatype = message.mediatype          // 消息内容类型(0、1文本表情/3图片)

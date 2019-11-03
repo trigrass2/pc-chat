@@ -8,19 +8,19 @@
     </ul>
     <div class="detail">
       <!-- 修改头像 -->
-      <div v-show="select===1">
+      <div v-show="select==1">
         <Head></Head>
       </div>
       <!-- 个人信息 -->
-      <div v-show="select===2">
+      <div v-show="select==2">
         <Info></Info>
       </div>
       <!-- 修改密码 -->
-      <div v-show="select===3">
+      <div v-show="select==3">
         <Pwd></Pwd>
       </div>
       <!-- 我的绩效 -->
-      <div v-show="select===4">
+      <div v-show="select==4">
         <Kpi></Kpi>
       </div>
     </div>

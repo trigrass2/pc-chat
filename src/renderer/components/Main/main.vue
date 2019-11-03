@@ -28,6 +28,8 @@
         @getPrivateInfo="getPrivateInfo"
         @getSessionInfo="getSessionInfo"
         @scrollToBottom="scrollToBottom"
+        @getGroupMsgFirst="getGroupMsgFirst"
+        @getPrivateMsgFirst="getPrivateMsgFirst"
       ></Sidebar>
       <div class="chat-main">
         <!-- 聊天头部栏 -->
@@ -160,18 +162,6 @@ export default {
       // 会话——排队人数
       waitNum: 0,
       // 会话——排队列表
-      // waitList: [
-      //   {
-      //     id: 1,
-      //     nickname: '哈哈哈哈哈',
-      //     addtime: '12:12:12',
-      //     sesorigin: {
-      //       name: '???/asd'
-      //     },
-      //     vip: 'asd',
-      //     lv: 4
-      //   }
-      // ],
       waitList: null,
       waitListShow: false,
       // 会话——已经接待人数
@@ -179,21 +169,8 @@ export default {
       // 会话——接待人数排名
       myorder: '未知',
       // 会话——接待人数排行榜
-      // topCustList: [
-      //   {
-      //     id: 1,
-      //     nickname: '哈是的哈是的哈实打实的',
-      //     c: 1021
-      //   }
-      // ],
       topCustList: null,
-      topCustListShow: false,
-      // 长轮询，未读消息数量/member操作——用来决定是否重新请求最新消息列表
-      hertBeat: {
-        unReadPrivateMessage: null,
-        teamMember: null,
-        unReadTeamMessage: null
-      }
+      topCustListShow: false
     }
   },
   created() {
@@ -213,6 +190,8 @@ export default {
     this.getSessionRank()
     // 监听ws重新连接——回执
     this.listenNewConnect()
+    // 监听账号在其他地方登录
+    this.listenOutLogin()
     // this.getHertBeat()
     // this.getGroupChatList()
     // 最新消息列表
@@ -234,10 +213,7 @@ export default {
       'unReadPrivateMsg',
       'unReadGroupMsg',
       'groupOperate',
-      'sessionMsgList',
-      'groupList'
-      // 'groupMsgList',
-      // 'privateMsgList'
+      'sessionMsgList'
     ])
   },
   components: {
@@ -249,6 +225,18 @@ export default {
     privateInfo
   },
   methods: {
+    // 监听账号在其他地方登录
+    listenOutLogin() {
+      this.$wsBus.$on('1011', res => {
+        if (res.returncode === '0') {
+          this.$refs.layer.show('账号在别处被登录！').then(() => {
+            this.logout()
+          })
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
     // ws重新连接
     newWsConnect(num) {
       // 手动
@@ -322,13 +310,14 @@ export default {
         userid: this.sUserInfo.userid
       }
       let data = JSON.stringify({ cmdid: 1010, data: _data })
-      // console.log('登出', data)
+      console.log('登出', data)
       this.$ws.send(data)
     },
     // 监听登出——回执
     listenLogout() {
       this.$wsBus.$on('1010', res => {
         if (res.returncode === '0') {
+          console.log('???')
           this.$electron.ipcRenderer.send('logout')
         } else {
           this.$refs.layer.show(res.returnmsg)
@@ -460,6 +449,8 @@ export default {
     async getSessionInfo(sessionInfo, page) {
       // 会话历史消息
       await this.$refs.sessionInfo.getSessionMsg(sessionInfo, page)
+      // 会话摘要
+      await this.$refs.sessionInfo.loadSummary(sessionInfo)
     },
     // 获取群相关信息(成员/聊天记录)
     async getGroupInfo(groupInfo, type) {
@@ -469,6 +460,18 @@ export default {
       await this.$refs.groupInfo.getGroupMsg(groupInfo, type)
       // 群即时消息
       await this.$refs.msg.getGroupMsg(groupInfo)
+      // 选中项样式改变
+      this.$refs.sidebar.selectGroup(groupInfo)
+    },
+    // 初始化获取群消息
+    getGroupMsgFirst(groupInfo) {
+      console.log('初始化获取群消息', groupInfo)
+      this.$refs.msg.getGroupMsg(groupInfo, true)
+    },
+    // 初始化获取私聊消息
+    getPrivateMsgFirst(privateInfo) {
+      console.log('初始化获取私聊消息', privateInfo)
+      this.$refs.msg.getPrivateMsg(privateInfo, true)
     },
     // 获取私聊相关信息(聊天记录)
     getPrivateInfo(privateInfo, page) {

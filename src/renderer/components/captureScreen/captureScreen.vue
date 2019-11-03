@@ -31,7 +31,6 @@ const $btnSave = document.getElementById('js-tool-save')
 const $btnReset = document.getElementById('js-tool-reset')
 export default {
   created() {
-    // console.log($canvas, $bg, $sizeInfo)
     // 截图声音
     this.audio = new Audio()
     this.audio.src = require('./audio/capture.mp3')

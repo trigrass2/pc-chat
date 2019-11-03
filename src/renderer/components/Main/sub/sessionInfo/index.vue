@@ -6,34 +6,43 @@
       <div :class="[status === 1 ? 'active' : ' ','text']" @click="changeTabs(1)">摘要记录</div>
       <div :class="[status === 2 ? 'active' : ' ','text']" @click="changeTabs(2)">聊天记录</div>
     </div> -->
-		<!-- 摘要 -->
-    <!-- <div class="summary" v-show="status === 1"> -->
-			<!-- 列表 -->
-      <!-- <ul>
-        <li v-for="(item, index) in summarylist" :key="item.id">
-          <div class="top">
-            <div class="time">{{item.time}}</div>
-            <div class="operate">
-              <img src="./img/edit.png" @click.stop="editSummary(item)" />
-              <img src="./img/delete.png" @click.stop="clearSummary(item)" />
+		  <div class="session-info">
+        <div class="tabs">
+          <div :class="[status === 1 ? 'active' : ' ','text']" @click="changeTabs(1)">摘要记录</div>
+          <div :class="[status === 2 ? 'active' : ' ','text']" @click="changeTabs(2)">聊天记录</div>
+        </div>
+        <!-- 摘要 -->
+        <div class="summary-container" v-show="status == 1">
+          <!-- 列表 -->
+          <div class="summary-con">
+            <ul>
+              <template v-if="!summarylist">
+                <spinner-content class="spinner" style="margin-top: 40px;"></spinner-content>
+              </template>
+              <template v-else-if="summarylist && summarylist.length > 0">
+                <li v-for="(item, index) in summarylist" :key="item.id">
+                  <div class="top">
+                    <div class="time">{{item.f_createtime}}</div>
+                    <div class="operate">
+                      <img src="./img/edit.png" @click.stop="editSum(item)" />
+                      <img src="./img/delete.png" @click.stop="clearSummary(item)" />
+                    </div>
+                  </div>
+                  <div class="content">{{item.content}}</div>
+                </li>
+              </template>
+              <div v-else class="noData">暂无历史消息</div>
+            </ul>
+          </div>
+          <!-- 编辑 -->
+          <div class="edit-wrap">
+            <div class="edit">
+              <textarea v-model="summaryEditIng.content"></textarea>
+              <div class="btn" @click="saveSummary">保存</div>
             </div>
           </div>
-          <div class="content">{{item.content}}</div>
-        </li>
-      </ul> -->
-			<!-- 编辑 -->
-      <!-- <div class="edit-wrap">
-        <div class="edit">
-          <textarea v-model="summaryEditIng.content"></textarea>
-          <div class="btn" @click="saveSummary">保存</div>
         </div>
-      </div>
-    </div> -->
-		  <div class="group-info">
-        <div class="tabs">
-          <div class="active text">会话记录</div>
-        </div>
-        <div class="record-container">
+        <div class="record-container" v-show="status == 2">
           <div class="page">
             <div :class="[isPreOk ? '': 'disable', 'pre', 'btn']" @click="pre">上一页</div>
             <div class="text">页: {{sessionMsgParams.page}}/{{sessionMsgParams.pages}}</div>
@@ -83,11 +92,11 @@ import { GROUPAPI } from 'api/http/groupChat'
 import { msgDataHandler } from 'common/js/business'
 import { mapGetters, mapMutations } from 'vuex'
 import { SessionMessage } from 'common/js/message.js'
-import { sessionChatList } from 'api/http/sessionChat'
-// const MEMBER = 1;
+import { sessionChatList, loadSummary, addSummary, editSummary, delSummary } from 'api/http/sessionChat'
 
 const Menu = remote.Menu
 const MenuItem = remote.MenuItem
+const SUMMARY = 1  // 摘要
 
 export default {
   created() {
@@ -131,11 +140,16 @@ export default {
       // 下一页是否可点击
       isNextOk: true,
       // 上一页是否可点击
-      isPreOk: true
+      isPreOk: true,
       // tab状态 summary/record
-      // status: SUMMARY,
+      status: SUMMARY,
       // 正在编辑会话摘要
-      // summaryEditIng: {},
+      summaryEditIng: {
+        id: '',
+        content: '',
+        guestsid: ''
+      },
+      summarylist: [] // 摘要列表
       // query: {
       //   scope: "",
       //   text: ""
@@ -158,23 +172,6 @@ export default {
       //     name: "所有"
       //   }
       // ],
-      // summarylist: [
-      //   {
-      //     id: "1",
-      //     time: "2019-4-3",
-      //     content: "123123"
-      //   },
-      //   {
-      //     id: "2",
-      //     time: "2019-4-3",
-      //     content: "123123123123123123123213213213"
-      //   },
-      //   {
-      //     id: "3",
-      //     time: "2019-4-3",
-      //     content: "123123"
-      //   }
-      // ]
     }
   },
   methods: {
@@ -214,7 +211,7 @@ export default {
           this.$refs.layer.show(res)
         })
     },
-    // 上一页
+    // 会话历史——上一页
     pre() {
       if (!this.isReqOk || !this.isPreOk) {
         return false
@@ -223,7 +220,7 @@ export default {
       let page = Number(this.sessionMsgParams.page) - 1
       this.getSessionMsg(this.sessionInfo, page)
     },
-    // 下一页
+    // 会话历史——下一页
     next() {
       if (!this.isReqOk || !this.isNextOk) {
         return false
@@ -232,7 +229,7 @@ export default {
       let page = Number(this.sessionMsgParams.page) + 1
       this.getSessionMsg(this.sessionInfo, page)
     },
-    // 翻页状态判断
+    // 会话历史——翻页状态判断
     goPageStatus(curPage, totalPage) {
       // 下一页状态判断
       if (!totalPage || curPage >= totalPage) {
@@ -244,7 +241,7 @@ export default {
         this.isNextOk = true
       }
       // 上一页状态判断
-      if (curPage === 1) {
+      if (curPage == 1) {
         // 上一页锁定
         this.isPreOk = false
       } else {
@@ -252,36 +249,85 @@ export default {
         this.isPreOk = true
       }
     },
-    // 消息处理
+    // 会话历史——消息处理
     msgHandler() {
       // 若当前会话存在，就去取消息列表，否则初始化为空数组
-      if (!this.recordList || this.recordList.length === 0) {
+      if (!this.recordList || this.recordList.length == 0) {
         this.recordList = []
         return false
       }
     },
-    // 消息内容处理
+    // 会话历史——消息内容处理
     showMsgDataHandler(data) {
       let result = msgDataHandler(data)
       return result
     },
-    // 切换tab
-    // changeTabs(num) {
-    //   this.status = num;
-    // },
-    // 编辑摘要
-    editSummary(item) {
-      let content = JSON.stringify(item);
-      content = JSON.parse(content);
-      this.summaryEditIng = content;
+    // 会话历史——切换tab
+    changeTabs(num) {
+      this.status = num;
     },
-    // 保存摘要
+    // 加载摘要列表
+    loadSummary(sessionInfo) {
+      if (!sessionInfo) {
+        return
+      }
+      loadSummary({guestsid: sessionInfo.guestsid}).then(res => {
+        if (res.data.returncode == '0') {
+          console.log(res)
+          this.summarylist = res.data.list
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+      .catch(res => {
+        this.$refs.layer.show(res)
+      })
+    },
+    // 编辑摘要
+    editSum(item) {
+      if (item.customerid != this.sUserInfo.userid) {
+        this.$refs.layer.show('只能编辑自己的记录')
+        return
+      }
+      this.$set(this.summaryEditIng, 'content', item.content)
+      this.$set(this.summaryEditIng, 'id', item.id)
+      console.log(this.summaryEditIng)
+    },
+    // 保存摘要(编辑/新增)
     saveSummary() {
-      let index = this.summarylist.findIndex((e, i, arr) => {
-        return e.id === this.summaryEditIng.id;
-      });
-      this.summarylist[index].content = this.summaryEditIng.content;
-      // console.log("保存摘要");
+      this.summaryEditIng.guestsid = this.sessionInfo.guestsid
+      // 编辑
+      if (this.summaryEditIng.id) {
+        editSummary(this.summaryEditIng).then(res => {
+          console.log(res)
+          if (res.data.returncode == '0') {
+            let index = this.summarylist.findIndex((e, i, arr) => {
+              return e.id == this.summaryEditIng.id
+            })
+            this.summarylist[index].content = this.summaryEditIng.content;
+            this.summaryEditIng.content = ''
+            this.summaryEditIng.id = ''
+            this.summaryEditIng.guestsid = ''
+          } else {
+            this.$refs.layer.show(res.returnmsg)
+          }
+        })
+        .catch(res => {
+          this.$refs.layer.show(res)
+        })
+        // 新增
+      } else {
+        addSummary(this.summaryEditIng).then(res => {
+          if (res.data.returncode == '0') {
+            this.loadSummary(this.sessionInfo)
+            this.summaryEditIng.content = ''
+            this.summaryEditIng.id = ''
+            this.summaryEditIng.guestsid = ''
+          } else {
+            this.$refs.layer.show(res.returnmsg)
+          }
+        })
+      }
     },
     // 删除摘要
     clearSummary(item) {
@@ -294,11 +340,24 @@ export default {
         },
         index => {
           // 0 确定 1取消
-          if (index === 0) {
-            let index = this.summarylist.findIndex((e, i, arr) => {
-              return e.id === item.id;
-            });
-            this.summarylist.splice(index, 1);
+          if (index == 0) {
+            delSummary({
+              guestsid: this.sessionInfo.guestsid,
+              content: item.content,
+              id: item.id
+            }).then(res => {
+              if (res.data.returncode == '0') {
+                let index = this.summarylist.findIndex((e, i, arr) => {
+                  return e.id == item.id;
+                })
+                this.summarylist.splice(index, 1);
+              } else {
+                this.$refs.layer.show(res.returnmsg)
+              }
+            })
+            .catch(res => {
+              this.$refs.layer.show(res)
+            })
           }
         }
       )
@@ -314,7 +373,9 @@ export default {
   font-size: 16px;
   color: rgb(83, 83, 83);
 }
-.group-info {
+.session-info {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   .tabs {
     height: 57px;
@@ -332,17 +393,18 @@ export default {
       background-color: $listHover;
     }
   }
-  .summary {
-    // height: 510px;
+  .summary-container {
+    display: flex;
+    flex-direction: column;
     height: 100%;
     background-color: $blank;
     position: relative;
-    ul {
-      // height: 370px;
-      height: 100%;
-      padding-bottom: 280px;
+    .summary-con{
+      flex: 1;
       overflow: auto;
-      border-bottom: 1px solid $border;
+    }
+    ul {
+      height: 100%;
       li {
         padding: 6px 0 6px 6px;
         cursor: default;
@@ -350,7 +412,7 @@ export default {
           background-color: $listLightHover;
         }
         &:last-child {
-          borer: none;
+          border: none;
         }
         .top {
           display: flex;
@@ -367,20 +429,19 @@ export default {
         }
         .content {
           color: $content;
+          word-wrap: break-word;
+          word-break: break-all;
+          overflow: hidden;
         }
       }
     }
     .edit-wrap {
-      position: absolute;
+      height: 143px;
       width: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 144px;
-      bottom: 138px;
       border-top: 1px solid $border;
       .edit {
         width: 90%;
-        height: 108px;
+        height: 122px;
         background-color: $blank;
         border: 10px solid $listHover;
         margin: 10px auto;
@@ -394,13 +455,15 @@ export default {
           border: none;
         }
         .btn {
+          font-size: 15px;
           position: absolute;
           width: 50px;
-          height: 17%;
+          height: 20px;
+          line-height: 20px;
           background-color: $listHover;
           text-align: center;
           right: 26px;
-    			bottom: 37px;
+    			bottom: 26px;
           border: 1px solid $border;
           cursor: default;
         }
@@ -408,41 +471,11 @@ export default {
     }
   }
 
-  .members {
-    height: 512px;
-    overflow: auto;
-    li {
-      display: flex;
-      align-items: center;
-      padding: 4px 10px;
-      height: 40px;
-      line-height: 40px;
-      border-bottom: 1px solid $border;
-      img {
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-      }
-      .tips {
-        padding: 2px 4px;
-        border-radius: 4px;
-        background-color: $red;
-        color: $blank;
-        border-radius: 4px;
-        color: #fff;
-        height: 20px;
-        font-size: 12px;
-        line-height: 16px;
-        margin-left: 12px;
-      }
-      .nick {
-        margin-left: 12px;
-      }
-    }
-  }
   .record-container {
     height: 100%;
     background-color: #fff;
+    display: flex;
+    flex-direction: column;
     .page {
       display: flex;
       justify-content: space-between;

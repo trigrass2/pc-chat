@@ -15,7 +15,7 @@ export default class Group {
     this.unReadInfo = {
       myMsgNum: null,  // 我在该群发送的消息数量
       allUnReadNum: null,  // 心跳轮询返回的消息数量
-      showUnReadNum: null  // 真实展示的消息数量, allUnReadNum-myMsgNum
+      unReadNum: null  // 真实展示的消息数量, allUnReadNum-myMsgNum
     }
     // this.createuser = createuser  // 创建者名称
     // this.createtime = createtime  // 群创建时间/毫秒

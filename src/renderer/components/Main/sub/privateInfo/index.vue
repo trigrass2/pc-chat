@@ -167,7 +167,7 @@ export default {
         this.isNextOk = true
       }
       // 上一页状态判断
-      if (curPage === 1) {
+      if (curPage == 1) {
         // 上一页锁定
         this.isPreOk = false
       } else {
@@ -177,7 +177,7 @@ export default {
     },
     // 消息处理
     msgHandler() {
-      if (!this.privateMsgHistory || this.privateMsgHistory.length === 0) {
+      if (!this.privateMsgHistory || this.privateMsgHistory.length == 0) {
         return false
       }
       this.privateMsgHistory.forEach((e, i, arr) => {

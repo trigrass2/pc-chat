@@ -6,23 +6,26 @@
         @click="changeTab(1)"
       >
         <span>会话</span>
+        <div class="unread" v-show="isSesMsgUnRead"></div>
       </li>
       <li
         :class="[tabSelected == 2 ? 'active' : '', groupNew ? 'new' : ''  ]"
         @click="changeTab(2)"
       >
         <span>群组</span>
+        <div class="unread" v-show="isGroMsgUnRead"></div>
       </li>
       <li
         :class="[tabSelected == 4 ? 'active' : '', friendNew ? 'new' : ''  ]"
         @click="changeTab(4)"
       >
         <span>同伴</span>
+        <div class="unread" v-show="isFriMsgUnRead"></div>
       </li>
     </ul>
     <div class="tab-list">
       <!-- 会话 -->
-      <div class="session-content" v-show="tabSelected === 1">
+      <div class="session-content" v-show="tabSelected == 1">
         <input v-model="sessionSearchText" type="text" placeholder="搜索会话" />
         <div class="status-box">
           <div
@@ -91,7 +94,7 @@
               @click.stop="selectGroupChat(item)"
             >
               <img :src="item.headurl" />
-              <div v-show="Number(item.unReadInfo.unReadNum) > 0" class="unread">{{item.unReadNum}}</div>
+              <div v-show="Number(item.unReadInfo.unReadNum) > 0" class="unread">{{item.unReadInfo.unReadNum}}</div>
               <!-- <div class="unread">2</div> -->
               <div class="text">{{item.teamname}}({{item.memberCount}})</div>
               <div class="time">{{item.lastMsgTime}}</div>
@@ -130,7 +133,7 @@
           <div class="title">at我的</div>
           <ul class="at-list">
             <template v-if="atMeList && atMeList.length > 0">
-              <li v-for="(item, index) in atMeList" :key="item.groupId">
+              <li v-for="(item, index) in atMeList" :key="item.id">
                 <div class="text">{{item.sendTime}} {{item.userName}} 在 {{item.groupName}} 提到了我</div>
               </li>
             </template>
@@ -139,7 +142,7 @@
         </div>
       </div>
       <!-- 同伴 -->
-      <div class="friend-content" v-show="tabSelected === 4">
+      <div class="friend-content" v-show="tabSelected == 4">
         <ul class="friend-list">
           <template v-if="!friendList">
             <spinner-content class="spinner" style="margin-top: 20px;"></spinner-content>
@@ -152,6 +155,10 @@
               @click.stop="selseFriendChat(item, index)"
             >
               <img :src="item.headurl" />
+              <div
+                  v-show="Number(item.unReadNum) > 0"
+                  class="unread"
+                >{{item.unReadNum}}</div>
               <div class="text">{{item.nickname}}</div>
               <div class="time">{{item.updatetime}}</div>
             </li>
@@ -205,7 +212,19 @@ export default {
       'groupList', // 群聊列表
       'privateList', // 私聊列表
       'atMeList' // at列表
-    ])
+    ]),
+    isSesMsgUnRead() {
+      console.log('哈哈12321哈哈')
+      return this.isUnRead(this.sessionList)
+    },
+    isGroMsgUnRead() {
+      console.log('哈哈12321哈哈')
+      return this.isUnRead([].concat(this.privateList).concat(this.groupList))
+    },
+    isFriMsgUnRead() {
+      console.log('哈哈12321哈哈')
+      return this.isUnRead(this.friendList)
+    }
   },
   data() {
     return {
@@ -234,15 +253,18 @@ export default {
     // 获取同伴列表
     this.getFriendList()
     // 获取群列表
-    this.getGroupList()
+    this.getGroupList('first')
     // 获取私聊列表
-    this.getPrivateList()
+    this.getPrivateList('first')
     // 监听会话进入
     this.listenNewSession()
     // 监听会话结束
     this.listenOverSession()
     // 搜索防抖初始化
-    // this.sessionSearch = debounce(this.sessionSearch, 500)
+    // this.selectSessionChat = debounce(this.selectSessionChat, 300)
+    // this.selseFriendChat = debounce(this.selseFriendChat, 300)
+    // this.selectGroupChat = debounce(this.selectGroupChat, 300)
+    // this.selectPrivateChat = debounce(this.selectPrivateChat, 300)
   },
   methods: {
     // 会话/群聊/同伴 tab切换
@@ -304,7 +326,7 @@ export default {
         privateInfoShow: privateShow
       })
       // 群聊——群聊复位
-      if (num === GROUP_CHATTYPE) {
+      if (num == GROUP_CHATTYPE) {
         if (this.groupInfo) {
           this.selectGroupChat(this.groupInfo)
         }
@@ -317,7 +339,6 @@ export default {
     },
     // 获取会话列表
     getSessionList() {
-      console.log('2')
       sessionList({ userid: this.sUserInfo.userid })
         .then(res => {
           if (res.data.returncode === '0') {
@@ -377,7 +398,7 @@ export default {
         })
     },
     // 获取群列表
-    async getGroupList() {
+    async getGroupList(isFirst) {
       await GROUPAPI.gChatList({ userId: this.gUserInfo.userId })
         .then(res => {
           if (res.data.code === '0000') {
@@ -405,11 +426,15 @@ export default {
               }
               // group不存在就新增
               if (!isHas) {
-                let addGroup = new Group(newGroup)
+                var addGroup = new Group(newGroup)
                 // console.log('新增群', addGroup)
                 this.SET_ADDGROUP({
                   group: addGroup
                 })
+              }
+              // 刚进入主界面时获取一次群消息
+              if (isFirst) {
+                this.$emit('getGroupMsgFirst', copy2(addGroup))
               }
             })
           } else {
@@ -425,7 +450,7 @@ export default {
       }, 60000)
     },
     // 获取私聊列表——从最新消息列表去获取
-    async getPrivateList() {
+    async getPrivateList(isFirst) {
       await GROUPAPI.gLastMsg({
         userId: this.gUserInfo.userId
       })
@@ -446,6 +471,7 @@ export default {
               return
             }
             // 最新消息列表——获取到私聊消息
+            var addPrivate
             resData.forEach((newPrivate, i, arr) => {
               // 原PrivateList中,session已存在就更新/session不存在就新增
               if (newPrivate.messageType == PRIVATE_MSG) {
@@ -457,12 +483,16 @@ export default {
                 }
                 // private不存在就新增
                 if (!isHas) {
-                  let addPrivate = new Private(newPrivate)
+                  addPrivate = new Private(newPrivate)
                   console.log('新增私聊', addPrivate)
                   this.SET_ADDPRIVATE({
                     private: addPrivate
                   })
                 }
+              }
+              // 刚进入主界面时获取一次私聊消息
+              if (isFirst) {
+                this.$emit('getPrivateMsgFirst', copy2(addPrivate))
               }
             })
           } else {
@@ -505,6 +535,7 @@ export default {
               }
               // friend不存在就新增
               if (!isHas) {
+                // console.log('同伴列表——新增同伴', newFriend)
                 let addFriend = new Friend(newFriend)
                 // console.log('新增同伴', addFriend)
                 this.SET_ADDFRIEND({
@@ -587,7 +618,6 @@ export default {
     // 监听会话结束
     listenOverSession() {
       this.$wsBus.$on('1202', res => {
-        console.log('7')
         if (res.returncode === '0') {
           let overSessionId = res.data.sesid
           let overSession = this.sessionList.find(session => {
@@ -765,10 +795,16 @@ export default {
         this.$emit('scrollToBottom')
       }, 1000)
     },
-    // 选中群聊
+    // 选中群聊——请求相关信息
     selectGroupChat(groupInfo) {
-      console.log('11')
-      // 选中项样式改变
+      this.$emit('getGroupInfo', copy2(groupInfo), 'first')
+      // 滚动到底部
+      setTimeout(() => {
+        this.$emit('scrollToBottom')
+      }, 1000)
+    },
+    // 选中聊天——样式改变
+    selectGroup(groupInfo) {
       if (this.privateList) {
         this.privateList.forEach((e, i, arr) => {
           e.isSelected = false
@@ -779,10 +815,15 @@ export default {
           e.isSelected = false
         })
       }
-      groupInfo.isSelected = true
+      let index = this.groupList.findIndex(e => {
+        return groupInfo.teamid == e.teamid
+      })
+      console.log('选中的群', index, this.groupList[index])
       // 未读消息清空
-      groupInfo.unReadInfo.unReadNum = 0
-      // this.$set(item, 'unReadNum', 0)
+      this.groupList[index].isSelected = true
+      this.groupList[index].unReadInfo.unReadNum = 0
+      this.groupList[index].unReadInfo.myMsgNum = 0
+      this.groupList[index].unReadInfo.allUnReadNum = 0
       // 展示群详情内容
       this.SET_GROUPINFO({
         groupInfoShow: true
@@ -799,35 +840,28 @@ export default {
       this.SET_PRIVATELIST({
         privateList: this.privateList
       })
-      // 更新当前群聊
-      let index = this.groupList.findIndex(e => {
-        return groupInfo.teamid == e.teamid
-      })
-      this.SET_EDITGROUP({
-        index: index,
-        group: groupInfo
-      })
-      console.log(this.chatType)
-      // 去上级组件请求群信息(群成员/群历史消息)
-      this.$emit('getGroupInfo', copy2(groupInfo), 'first')
-      // 滚动到底部
-      setTimeout(() => {
-        this.$emit('scrollToBottom')
-      }, 1000)
     },
     // 选中私聊
     selectPrivateChat(privateInfo) {
-      console.log('12')
-      // 选中项样式改变
-      this.privateList.forEach((e, i, arr) => {
-        e.isSelected = false
+      if (this.privateList) {
+        this.privateList.forEach((e, i, arr) => {
+          e.isSelected = false
+        })
+      }
+      if (this.groupList) {
+        this.groupList.forEach((e, i, arr) => {
+          e.isSelected = false
+        })
+      }
+      let index = this.privateList.findIndex(e => {
+        return privateInfo.id == e.id
       })
-      this.groupList.forEach((e, i, arr) => {
-        e.isSelected = false
-      })
-      privateInfo.isSelected = true
+      console.log('选中的私聊', index, this.privateList[index])
       // 未读消息清空
-      privateInfo.unReadInfo.unReadNum = 0
+      this.privateList[index].isSelected = true
+      this.privateList[index].unReadInfo.unReadNum = 0
+      this.privateList[index].unReadInfo.myMsgNum = 0
+      this.privateList[index].unReadInfo.allUnReadNum = 0
       // 展示私聊详情内容
       this.SET_PRIVATEINFO({
         privateInfoShow: true
@@ -844,14 +878,6 @@ export default {
       this.SET_GROUPLIST({
         groupList: this.groupList
       })
-      // 更新当前私聊
-      let index = this.privateList.findIndex(e => {
-        return privateInfo.id == e.id
-      })
-      this.SET_EDITPRIVATE({
-        index: index,
-        private: privateInfo
-      })
       // 去上级组件请求私聊信息(私聊历史消息)
       this.$emit('getPrivateInfo', copy2(privateInfo), 1)
       // 滚动到底部
@@ -859,6 +885,32 @@ export default {
         this.$emit('scrollToBottom')
       }, 1000)
     },
+    // 是否存在未读消息
+    isUnRead(list) {
+      if (!list) {
+        return false
+      }
+      var index = list.findIndex((e) => {
+        if (e && e.unReadInfo && e.unReadInfo.unReadNum) {
+          return e.unReadInfo.unReadNum > 0
+        } else if (e && e.unReadNum) {
+          return e.unReadNum > 0
+        } else {
+          return false
+        }
+      })
+      console.log('是否存在未读消息', index)
+      if (index > -1) {
+        return true
+      } else {
+        return false
+      }
+    },
+    
+    // // 选中私聊——样式改变
+    // selectPrivate(privateInfo) {
+      
+    // },
     ...mapMutations({
       SET_CHATTYPE: 'SET_CHATTYPE',
       SET_GROUPINFO: 'SET_GROUPINFO',
@@ -879,15 +931,13 @@ export default {
   },
   filters: {
     format(date, type) {
-      console.log('22')
-      if (type === 'all') {
+      if (type == 'all') {
         return formatDate(date, 'yyyy-MM-dd hh:mm:ss')
       } else {
         return formatDate(date, 'yyyy-MM-dd')
       }
     },
     sessionStatus(data) {
-      console.log('23')
       if (data == '0') {
         return '新接入会话'
       } else {
@@ -895,7 +945,6 @@ export default {
       }
     },
     phoneSecriet(data) {
-      console.log('24')
       let pat = /(\d{3})\d*(\d{4})/
       return data.replace(pat, '$1****$2')
     }
@@ -914,6 +963,15 @@ export default {
   display: flex;
   width: 100%;
   height: 40px;
+  .unread {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: red;
+    position: absolute;
+    margin-top: -32px;
+    margin-left: 52px;
+  }
   .active {
     background-color: $blank;
     box-shadow: 0 0 5px rgba(31, 28, 28, 0.3);
@@ -1073,8 +1131,9 @@ export default {
     }
   }
   .private-chat-content {
-    position: relative;
+    // position: relative;
     .private-list{
+      position: relative;
       height: 200px;
       overflow: auto;
     }
@@ -1087,6 +1146,10 @@ export default {
     height: 100%;
     border-bottom: 1px solid $border;
     overflow: auto;
+    .unread {
+      margin-top: -15px;
+      margin-left: 25px;
+    }
   }
   .at-chat-content {
     flex: 1;
@@ -1103,6 +1166,9 @@ export default {
       height: 120px;
       overflow: auto;
       li {
+        &:hover {
+          background-color: #fff;
+        }
         font-size: 12px;
       }
     }
@@ -1144,8 +1210,9 @@ export default {
       }
       .unread {
         position: absolute;
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
         border-radius: 50%;
         background-color: red;
         color: #fff;

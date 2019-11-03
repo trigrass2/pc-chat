@@ -13,7 +13,7 @@ export default class Private {
     this.unReadInfo = {
       myMsgNum: null,  // 我在该私聊发送的消息数量
       allUnReadNum: null,  // 心跳轮询返回的消息数量
-      showUnReadNum: null  // 真实展示的消息数量, allUnReadNum-myMsgNum
+      unReadNum: null  // 真实展示的消息数量, allUnReadNum-myMsgNum
     }
   }
 }

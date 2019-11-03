@@ -217,12 +217,14 @@ export default {
      * groupInfo: 群信息
      */
     async getGroupMember(groupInfo) {
+      console.log('请求群成员列表进入')
       // 请求群历史消息/群成员列表
       this.groupMemberParams.userId = this.gUserInfo.userId
       this.groupMemberParams.teamid = groupInfo.teamid
       await GROUPAPI.gMembers(this.groupMemberParams)
         .then(res => {
           if (res.data.code === '0000') {
+             console.log('请求群成员列表完成')
             let resData = this.$crypto.decrypt(res.data.body)
             // 接口每次返回的群成员顺序不同，排序一下保持相同
             resData = JSON.parse(resData).sort((a, b) => {
@@ -246,6 +248,7 @@ export default {
      * msgid: 当前列表中离当前时间最远消息的uuid——用于分页
      */
     async getGroupMsg(groupInfo, msgid) {
+      console.log('获取群历史记录进去')
       this.groupMsgParams.fromid = this.gUserInfo.userId
       if (msgid == 'first') {
         this.groupMsgParams.msgid = ''
@@ -260,6 +263,7 @@ export default {
       await GROUPAPI.gMsgHistory(this.groupMsgParams)
         .then(res => {
           if (res.data.code === '0000') {
+            console.log('获取群历史记录完成')
             let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
               .messages
             // console.log(JSON.stringify(copy2(this.groupMsgHistory)))

@@ -63,7 +63,7 @@ ipcMain.on('getSession', (event, data) => {
 })
 // 登出
 ipcMain.on('logout', (event, data) => {
-  focusWindowClose()
+  BrowserWindow.getAllWindows().forEach(win => win.close())
   loginWin = NewWindow(
     { height: 560, width: 380, backgroundColor: '#F6F6F6' },
     'login'

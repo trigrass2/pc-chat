@@ -39,7 +39,7 @@
             class="enter"
             @click="openPhrases"
           >常用语</div>
-          <ul v-show="commonPhrasesShow && chatType === 1" @mouseleave="closePhrases">
+          <ul v-show="commonPhrasesShow && chatType == 1" @mouseleave="closePhrases">
             <li v-for="(item, index) in phrasesList" @click="usePhrases(item)">{{item.content}}</li>
           </ul>
         </div>
@@ -117,12 +117,14 @@ export default {
     groupList: {
       handler(newV) {
         if (this.groupList) {
+          console.log('textbox—监听到群列表变化1')
           this.groupInfo =
             copy2(
               this.groupList.find((e, i, arr) => {
                 return e.isSelected
               })
             ) || null
+            console.log('textbox—监听到群列表变化2')
         } else {
           this.groupList = null
         }
@@ -150,6 +152,7 @@ export default {
           this.friendInfo =
             copy2(
               this.friendList.find((e, i, arr) => {
+                console.log('textbox——监听friend')
                 return e.isSelected
               })
             ) || null
@@ -471,7 +474,7 @@ export default {
         // console.log('处理完表情', msgbody)
       }
       // 发送会话消息
-      if (this.chatType === SESSION_CHATTYPE) {
+      if (this.chatType == SESSION_CHATTYPE) {
         // 要发送的会话消息
         let message = {
           fromid: this.sUserInfo.userid,
@@ -518,7 +521,7 @@ export default {
         this.send(message)
       }
       // 发送同伴消息
-      if (this.chatType === FRIEND_CHATTYPE) {
+      if (this.chatType == FRIEND_CHATTYPE) {
         // 要去发送的消息
         let message = {
           fromid: this.sUserInfo.userid,
@@ -558,7 +561,7 @@ export default {
         this.send(message)
       }
       // 发送群消息
-      if (this.chatType === GROUP_CHATTYPE) {
+      if (this.chatType == GROUP_CHATTYPE) {
         // @at列表处理
         if (this.atList.length > 0) {
           this.atList.forEach((e, i, arr) => {
@@ -615,7 +618,7 @@ export default {
         this.send(message)
       }
       // 发送私聊消息
-      if (this.chatType === PRIVATE_CHATTYPE) {
+      if (this.chatType == PRIVATE_CHATTYPE) {
         // 要发送的消息
         let message = {
           fromid: this.gUserInfo.userId, // 发送者id
@@ -789,6 +792,8 @@ export default {
   border: none;
   padding: 6px 10px;
   .message {
+    word-wrap: break-word;
+    word-break: break-all;
     height: 65px;
     width: 100%;
     border: none;

@@ -32,7 +32,7 @@ export function NewWindow(config, hashName) {
 function winUrl(hashName) {
   const winURL =
     process.env.NODE_ENV === 'development'
-      ? `http://localhost:9080/#/${hashName}`
+      ? `http://localhost:9081/#/${hashName}`
       : `file://${__dirname}/index.html/#/${hashName}`
   return winURL
 }

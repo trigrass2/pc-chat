@@ -14,7 +14,7 @@ export default {
     // },
     time: {
       type: Number,
-      default: 100
+      default: 2
     }
   },
   data() {

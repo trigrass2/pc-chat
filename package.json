@@ -1,12 +1,13 @@
 {
   "name": "pc-chat",
   "version": "0.0.1",
-  "author": "Star <464659446@qq.com>",
+  "author": "浙金<www.zjfae.com>",
   "description": "An electron-vue project",
   "license": null,
   "main": "./dist/electron/main.js",
   "scripts": {
     "ws": "node ./server/ws.js",
+    "win32": "node .electron-vue/build.js && electron-builder --platform=win32  --arch=ia32",
     "build": "node .electron-vue/build.js && electron-builder",
     "build:dir": "node .electron-vue/build.js && electron-builder --dir",
     "build:clean": "cross-env BUILD_TARGET=clean node .electron-vue/build.js",
@@ -20,8 +21,8 @@
     "postinstall": "npm run lint:fix"
   },
   "build": {
-    "productName": "pc-chat",
-    "appId": "com.example.yourapp",
+    "productName": "客服聊天工具",
+    "appId": "com.zjfae.pc-chat",
     "directories": {
       "output": "build"
     },

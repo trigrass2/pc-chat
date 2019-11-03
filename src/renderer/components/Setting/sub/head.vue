@@ -89,6 +89,7 @@ export default {
                   // console.log(vm.sUserInfo, res.data.data)
                   let newInfo = copy2(vm.sUserInfo)
                   newInfo.headurl = res.data.data
+                  console.log('更换头像后', newInfo)
                   vm.SET_SUSERINFO({
                     sUserInfo: newInfo
                   })

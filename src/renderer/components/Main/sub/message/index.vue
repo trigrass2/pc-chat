@@ -3,7 +3,7 @@
     <div class="chat-con">
       <div class="chat-title">
         <!-- 会话头部栏 -->
-        <div class="title" v-show="chatType === 1 && sessionInfo">
+        <div class="title" v-show="chatType == 1 && sessionInfo">
           <div class="name">
             <span>{{sessionInfo && sessionInfo.nickname}}</span>
             <span
@@ -20,9 +20,26 @@
             IP：
             <span>{{sessionInfo && sessionInfo.sesorigin && sessionInfo.sesorigin.ip}}</span>
           </div>
+          <!-- <div v-if="currentsession.status==0" class="custChange" v-on:click="showCust" >
+            <img src="../components/chat-status/imgs/arrow_switch.png" />
+            <span>转接</span>
+          </div>
+          <div v-if="showCustList" class="list" v-on:mouseleave="showCustList=false">
+            <div v-for="cust in custList" v-on:click="changeTo(cust)" class="cust">
+              <div class="head" ><img v-bind:src="cust.headurl" /></div>
+              {{cust.nickname}}
+              <span style="color:green">[{{cust.currentnum}}/{{cust.maxsession}}]</span>
+              <span v-if="cust.status==1" style="color:green">[正常]</span>
+              <span v-if="cust.status==2" style="color:#999">[离开]</span>
+              <span v-if="cust.status==0" style="color:#ccc">[离线]</span>
+            </div>
+            <div v-if="!custList || custList.length==0" class="cust">
+              <span>暂无可用客服</span>
+            </div>
+          </div> -->
         </div>
         <!-- 群聊头部栏 -->
-        <div class="title" v-show="chatType === 2 && groupInfo">
+        <div class="title" v-show="chatType == 2 && groupInfo">
           <div class="name">
             <span>{{groupInfo && groupInfo.teamname}}</span>
             <span class="tag">{{groupInfo && groupInfo.teamTypeName}}</span>
@@ -33,7 +50,7 @@
           </div>
         </div>
         <!-- 同伴头部栏 -->
-        <div class="title" v-show="chatType === 4">
+        <div class="title" v-show="chatType == 4">
           <div class="name">
             <span>{{friendInfo && friendInfo.nickname}}</span>
           </div>
@@ -42,7 +59,7 @@
           </div>
         </div>
         <!-- 私聊头部栏 -->
-        <div class="title" v-show="chatType === 3 && privateInfo">
+        <div class="title" v-show="chatType == 3 && privateInfo">
           <div class="name">
             <span>{{privateInfo && privateInfo.name}}</span>
           </div>
@@ -61,10 +78,10 @@
                   <div class="text">{{item.text}}</div>
                 </div>
               </template>
-              <template v-else-if="item.recall === '1' || item.isback">
+              <template v-else-if="item.recall == '1' || item.isback">
                 <li class="recall">
                   <div class="time">{{item.sendTime}}</div>
-                  <div class="text" v-if="item.fromid === gUserInfo.userId || item.isMine">你撤回了一条消息</div>
+                  <div class="text" v-if="item.fromid == gUserInfo.userId || item.isMine">你撤回了一条消息</div>
                   <div class="text" v-else>{{item.nickname}}撤回了一条消息</div>
                 </li>
               </template>
@@ -105,7 +122,7 @@
               <!-- 文本表情 -->
               <template v-else>
                 <!-- 我的消息 -->
-                <li class="my" v-if="item.fromid === gUserInfo.userId || item.isMine">
+                <li class="my" v-if="item.fromid == gUserInfo.userId || item.isMine">
                   <div class="con-wrap">
                     <div class="title" v-if="chatType !== 1 && chatType !== 4">
                       <span class="time">{{item.sendTime}}</span>
@@ -165,13 +182,7 @@
         </div>
       </div>
     </div>
-    <viewer
-      v-show="imgViewShow"
-      class="viewer"
-      @inited="inited"
-      :images="imgList"
-      ref="viewer"
-    >
+    <viewer v-show="imgViewShow" class="viewer" @inited="inited" :images="imgList" ref="viewer">
       <img width="0" height="0" v-for="(src, index) in imgList" :src="src" :key="index" />
     </viewer>
     <layer-content ref="layer"></layer-content>
@@ -185,7 +196,7 @@ import { msgDataHandler } from 'common/js/business'
 import { GROUPAPI } from 'api/http/groupChat'
 import Session from 'common/js/session.js'
 import AtMe from 'common/js/atMe.js'
-import { SessionMessage, fiendMessage } from 'common/js/message.js'
+import { SessionMessage, FriendMessage } from 'common/js/message.js'
 import msgLoading from 'base/msgLoading'
 import {
   SESSION_CHATTYPE, // 当前聊天类型——会话
@@ -249,7 +260,6 @@ export default {
       clickRightMsg: '',
       // 是否有更多的消息
       hasMoreMsg: true,
-      nini: '13123',
       // 图片预览显隐
       imgViewShow: false,
       // 右键菜单
@@ -282,18 +292,6 @@ export default {
     }
   },
   computed: {
-    // 图片预览-图片数据准备
-    // imgPreviewList() {
-    //   if (this.chatType === SESSION_CHATTYPE) {
-    //     return this.sessionImg
-    //   } else if (this.chatType == GROUP_CHATTYPE) {
-    //     return this.groupImg
-    //   } else if (this.chatType == PRIVATE_CHATTYPE) {
-    //     return this.privateImg
-    //   } else if (this.chatType == FRIEND_CHATTYPE) {
-    //     return []
-    //   }
-    // },
     ...mapGetters([
       'conRightShow', // 右侧信息栏显影
       'groupInfoShow',
@@ -344,13 +342,14 @@ export default {
     groupList: {
       handler(newV) {
         if (this.groupList) {
+          console.log('是这里吗')
           this.groupInfo =
             copy2(
               this.groupList.find((e, i, arr) => {
                 return e.isSelected
               })
             ) || null
-          // console.log('监听到群聊列表变化，当前群聊变更')
+          console.log('监听到群聊列表变化，当前群聊变更')
         } else {
           this.groupList = null
         }
@@ -399,19 +398,21 @@ export default {
   methods: {
     // 心跳长轮询(未读私聊消息/未读群成员/未读群聊消息)
     async getHertBeat() {
-      // console.log('心跳长轮询123')
+      console.log('心跳长轮训')
       // 获取未读消息前，先把私聊列表更新一下
       // await this.getPrivateList()
       // 获取未读消息
       await GROUPAPI.gHertBeat({ userId: this.gUserInfo.userId })
         .then(res => {
           if (res.data.code === '0000') {
+            console.log('心跳长轮训返回')
             let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
-            // console.log('未读消息数量', resData)
             var teampUnReads = resData.teamMessage.teamUnReadMessageMap
             var privateUnReads = resData.privateMessage.privateUnReadMessageMap
             // 遍历群未读消息
+            let teamUnFind = false
             if (JSON.stringify(teampUnReads) !== '{}') {
+              console.log('群消息未读', resData)
               for (let key in teampUnReads) {
                 let teampUnRead = teampUnReads[key]
                 let teampUnReadNum = teampUnRead.unReadTeamMessageNumber
@@ -421,48 +422,25 @@ export default {
                 let teamIndex = this.groupList.findIndex(e => {
                   return e.teamid == teampUnRead.teamId
                 })
-                // 如果未读群消息在群列表不存在, 重新请求群聊列表
+                // 记录下未读消息对应群不存在，稍后去请求群列表
                 if (!team) {
-                  this.$emit('getGroupList')
+                  teamUnFind = true
+                  // this.$emit('getGroupList')
                   continue
                 }
                 // 如果有未读消息, 就去更新群消息 和 进行At列表处理
                 if (teampUnReadNum && teampUnReadNum > 0) {
-                  // console.log('未读消息')
+                  console.log('有未读消息就去更新消息', team)
                   this.getGroupMsg(team, true)
                 }
-                // 当前群的话，不加红色提醒, 跳过
-                if (
-                  this.chatType == 2 && this.groupInfo &&
-                  teampUnRead.teamId == this.groupInfo.teamid
-                ) {
-                  continue
-                }
-                // 此前心跳传的未读消息
-                let all = team.unReadInfo.allUnReadNum
-                // 此前在该群我发送消息的数量
-                let num = team.unReadInfo.myMsgNum
-                // 此前心跳未传过值 或 和当前心跳传的值不相同时
-                if (!all || all != teampUnReadNum) {
-                  team.unReadInfo.allUnReadNum = teampUnReadNum
-                  // 该群未读总消息数量-我的消息数量
-                  num = teampUnReadNum - num
-                  // 我发送的消息数量清空
-                  team.unReadInfo.myMsgNum = 0
-                }
-                if (num < 0) {
-                  num = 0
-                }
-                // 给群列表设置未读数量字段
-                team.unReadInfo.unReadNum = num
-                // console.log('群聊消息更新', copy2(team))
-                this.SET_EDITGROUP({
-                  index: teamIndex,
-                  group: team
-                })
+              }
+              // 如果未读群消息在群列表不存在, 重新请求群聊列表
+              if (teamUnFind) {
+                this.$emit('getGroupList')
               }
             }
             // 遍历私聊未读消息
+            let privateUnFind = false
             if (JSON.stringify(privateUnReads) !== '{}') {
               // console.log('私聊有未读消息')
               for (let key in privateUnReads) {
@@ -476,41 +454,19 @@ export default {
                 })
                 // 如果未读私聊消息在私聊列表也不存在, 重新请求私聊列表
                 if (!prvat) {
-                  this.$emit('getPrivateList')
+                  privateUnFind = true
+                  // this.$emit('getPrivateList')
                   continue
                 }
-                // 此前心跳传的未读消息
-                let all = prvat.unReadInfo.allUnReadNum
-                // 此前在该群我发送消息的数量
-                let num = prvat.unReadInfo.myMsgNum
                 // 如果有未读消息, 就去更新私聊消息
                 if (privateUnReadNum && privateUnReadNum > 0) {
-                  this.getPrivateMsg(prvat, false)
+                  console.log('有未读消息就去更新消息', prvat)
+                  this.getPrivateMsg(prvat, true)
                 }
-                // 当前私聊的话，不加红色提醒
-                if (
-                  this.chatType == 3 &&
-                  privateUnRead.fromUserId == this.privateInfo.id
-                ) {
-                  continue
-                }
-                // 此前心跳传过值且和当前心跳传的值相同时, 未读消息为0
-                if (!all || all != privateUnReadNum) {
-                  // 此前心跳未传过值或和当前心跳传的值不相同时
-                  prvat.unReadInfo.allUnReadNum = privateUnReadNum
-                  // 该群未读总消息数量-我的消息数量
-                  num = privateUnReadNum - num
-                  // 我发送的消息数量清空
-                  prvat.unReadInfo.myMsgNum = 0
-                }
-                if (num < 0) {
-                  num = 0
-                }
-                prvat.unReadInfo.unReadNum = num
-                this.SET_EDITPRIVATE({
-                  index: prvatIndex,
-                  private: prvat
-                })
+              }
+              // 如果未读群消息在私聊列表不存在, 重新请求群私聊列表
+              if (privateUnFind) {
+                this.$emit('getPrivateList')
               }
             }
             this.getHertBeat()
@@ -630,16 +586,17 @@ export default {
               oldFriend.unReadNum++
             }
             // 更新该会话的最新消息时间
-            oldFriend.timeline = ewMsg.timeline
+            oldFriend.timeline = newMsg.timeline
             oldFriend.updatetime = formatDate(newMsg.timeline, 'hh:mm:ss')
             // console.log('消息对应的同伴已存在', oldIndex, oldFriend)
             this.SET_EDITFRIEND({
               index: oldIndex,
-              session: oldFriend
+              friend: oldFriend
             })
           } else {
             // 消息对应的同伴不存在,新增同伴/新增消息
             // 新增同伴
+            // console.log('新增同伴', newMsg)
             let addFriend = new Friend({
               userid: newMsg.fromid,
               isSelected: false,
@@ -667,71 +624,78 @@ export default {
      *  groupInfo(object) 群信息
      *  isUnRead(boolean) 未读消息true(为了收集atMeList)/点击群列表false(为了新增群消息)
      */
-    getGroupMsg(groupInfo, isUnRead) {
+    async getGroupMsg(groupInfo, isUnRead) {
+      if (!groupInfo) {
+        return
+      }
+      // console.log('获取群消息')
       // 请求参数赋值
       this.groupMsgParams.fromid = this.gUserInfo.userId
       this.groupMsgParams.toid = this.groupMsgParams.teamid = groupInfo.teamid
-      GROUPAPI.gMsgHistory(this.groupMsgParams)
+      await GROUPAPI.gMsgHistory(this.groupMsgParams)
         .then(res => {
           if (res.data.code === '0000') {
+            // console.log('获取群消息完成')
             let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
               .messages
             // 若取得群消息列表为空，不继续执行
             if (!resData || (resData && resData.length == 0)) {
               return
             }
-            // 若原群消息为空，直接传入取得的消息列表，更新群信息。
-            if (
-              !groupInfo.messageList ||
-              (groupInfo.messageList && groupInfo.messageList.length == 0)
-            ) {
-              groupInfo.messageList = resData
-              let groupIndex = this.groupList.findIndex(oldGroup => {
-                return groupInfo.teamid == oldGroup.teamid
+            // 查找每条消息在原群消息中是否存在。
+            // 不存在，新增消息/找出@Me信息。存在，不做操作。
+            var groupIndex
+            resData.forEach(newMsg => {
+              let isHas = groupInfo.messageList.find(oldMsg => {
+                return newMsg.msgid == oldMsg.msgid
               })
-              // console.log('去更新群消息', groupInfo, groupIndex)
-              if (groupIndex > -1) {
-                this.SET_EDITGROUP({
-                  index: groupIndex,
-                  group: groupInfo
+              if (!isHas) {
+                // 更新群消息
+                // console.log('消息在原群不存在', newMsg)
+                groupInfo.messageList.push(newMsg)
+                groupIndex = this.groupList.findIndex(oldGroup => {
+                  return groupInfo.teamid == oldGroup.teamid
                 })
-              }
-              // 若通过未读消息进入,需要找出@Me信息列表
-              if (isUnRead) {
-                resData.forEach(newMsg => {
+                // 若通过未读消息进入
+                if (isUnRead) {
+                  // console.log('进入未读消息设置', groupInfo, this.chatType)
+                  if (this.groupInfo) {
+                    console.log(this.groupInfo)
+                  }
+                  // 当前群打开时，不进行未读消息记录和@信息处理
+                  if (
+                    this.chatType == GROUP_CHATTYPE &&
+                    this.groupInfo &&
+                    groupInfo.teamid == this.groupInfo.teamid
+                  ) {
+                    // console.log('离开未读消息设置', groupInfo.teamId, groupInfo.teamid)
+                    return
+                  }
+                  // 设置未读消息数量
+                  if (newMsg.fromid == this.gUserInfo.userId) {
+                    groupInfo.unReadInfo.myMsgNum += 1
+                  }
+                  groupInfo.unReadInfo.allUnReadNum += 1
+                  groupInfo.unReadInfo.unReadNum =
+                    groupInfo.unReadInfo.allUnReadNum -
+                    groupInfo.unReadInfo.myMsgNum
+                  // console.log('设置完未读消息数量')
+                  // 找出@Me信息列表
                   if (newMsg.atMsg == '1' && newMsg.atlist.length > 0) {
                     // 循环atlist——找到@我的消息
                     this.getAtMeMsg(newMsg, newMsg.atlist)
-                  }
-                })
-              }
-            } else {
-              // 若群消息不为空，查找每条消息在原群消息中是否存在。
-              // 不存在，新增消息/找出@Me信息。存在，不做操作。
-              resData.forEach(newMsg => {
-                let isHas = groupInfo.messageList.find(oldMsg => {
-                  return newMsg.msgid == oldMsg.msgid
-                })
-                if (!isHas) {
-                  groupInfo.messageList.push(newMsg)
-                  let groupIndex = this.groupList.findIndex(oldGroup => {
-                    return groupInfo.teamid == oldGroup.teamid
-                  })
-                  if (groupIndex > -1) {
-                    this.SET_EDITGROUP({
-                      index: groupIndex,
-                      group: groupInfo
-                    })
-                  }
-                  // 若通过未读消息进入,需要找出@Me信息列表
-                  if (isUnRead) {
-                    if (newMsg.atMsg == '1' && newMsg.atlist.length > 0) {
-                      // 循环atlist——找到@我的消息
-                      this.getAtMeMsg(newMsg, newMsg.atlist)
-                    }
+                    // console.log('找出@Me信息列表')
                   }
                 }
+              }
+            })
+            if (groupIndex > -1) {
+              // console.log('更新前', groupIndex, groupInfo)
+              this.SET_EDITGROUP({
+                index: groupIndex,
+                group: groupInfo
               })
+              // console.log('更新完毕')
             }
           } else {
             this.$refs.layer.show(res.data.message)
@@ -746,6 +710,9 @@ export default {
      *  isUnRead(boolean) 未读消息true/点击群列表false(都是为了更新消息)
      */
     async getPrivateMsg(privateInfo, isUnRead) {
+      if (!privateInfo) {
+        return 
+      }
       this.privateMsgParams.toid = this.gUserInfo.userId // 接收者id
       this.privateMsgParams.fromid = privateInfo.id // 发送者id
       await GROUPAPI.gPrivateMsg(this.privateMsgParams)
@@ -757,42 +724,52 @@ export default {
             if (!resData || (resData && resData.length == 0)) {
               return
             }
-            // 若原私聊消息为空，直接传入取得的消息列表，更新群信息。
-            if (
-              !privateInfo.messageList ||
-              (privateInfo.messageList && privateInfo.messageList.length == 0)
-            ) {
-              privateInfo.messageList = copy2(resData)
-              let privateIndex = this.privateList.findIndex(oldPrivate => {
-                return privateInfo.id == oldPrivate.id
+            // 查找每条消息在原私聊消息中是否存在。
+            // 不存在，新增消息。存在，不做操作。
+            var privateIndex
+            resData.forEach(newMsg => {
+              let isHas = privateInfo.messageList.find(oldMsg => {
+                return newMsg.msgid == oldMsg.msgid
               })
-              if (privateIndex > -1) {
-                this.SET_EDITPRIVATE({
-                  index: privateIndex,
-                  private: privateInfo
+              if (!isHas) {
+                // 更新群消息
+                console.log('消息在原私聊不存在', newMsg)
+                privateInfo.messageList.push(newMsg)
+                privateIndex = this.privateList.findIndex(oldPrivate => {
+                  console.log(privateInfo, oldPrivate)
+                  return privateInfo.id == oldPrivate.id
                 })
-              }
-            } else {
-              // 若原私聊消息不为空，查找每条消息在原私聊消息中是否存在。
-              // 不存在，新增消息。存在，不做操作。
-              resData.forEach(newMsg => {
-                let isHas = privateInfo.messageList.find(oldMsg => {
-                  return newMsg.msgid == oldMsg.msgid
-                })
-                // console.log('没有？', isHas, copy2(newMsg))
-                if (!isHas) {
-                  privateInfo.messageList.push(newMsg)
-                  let privateIndex = this.privateList.findIndex(oldPrivate => {
-                    return privateInfo.id == oldPrivate.id
-                  })
-                  if (privateIndex > -1) {
-                    this.SET_EDITPRIVATE({
-                      index: privateIndex,
-                      private: privateInfo
-                    })
+                // 若通过未读消息进入
+                if (isUnRead) {
+                  console.log('进入未读消息设置', privateInfo)
+                  // 当前私聊打开时，不进行未读消息记录
+                  if (
+                    this.chatType == PRIVATE_CHATTYPE &&
+                    this.privateInfo &&
+                    privateInfo.id == this.privateInfo.id
+                  ) {
+                    console.log('离开未读消息设置', privateInfo.id, this.privateInfo.id)
+                    return
                   }
+                  // 设置未读消息数量
+                  if (newMsg.fromid == this.gUserInfo.userId) {
+                    privateInfo.unReadInfo.myMsgNum += 1
+                  }
+                  privateInfo.unReadInfo.allUnReadNum += 1
+                  privateInfo.unReadInfo.unReadNum =
+                    privateInfo.unReadInfo.allUnReadNum -
+                    privateInfo.unReadInfo.myMsgNum
+                  console.log('设置完未读私聊消息数量')
                 }
+              }
+            })
+            if (privateIndex > -1) {
+              console.log('更新私聊前', privateIndex, privateInfo)
+              this.SET_EDITPRIVATE({
+                index: privateIndex,
+                private: privateInfo
               })
+              console.log('更新私聊hou', privateIndex, privateInfo)
             }
           } else {
             this.$refs.layer.show(res.data.message)
@@ -808,28 +785,34 @@ export default {
      * atList: atList内容
      */
     getAtMeMsg(msgInfo, atList) {
+      // console.log('@me', msgInfo, atList)
       atList.forEach(newAt => {
         // 如果是at我的消息
         if (newAt.userid == this.gUserInfo.userId) {
-          // 如果@我的消息在缓存atList中已经存在(同群同人),不做操作。
-          if (
-            this.atMeList.find(oldAt => {
-              return (
-                oldAt.groupId == msgInfo.toid && oldAt.userId == msgInfo.fromid
-              )
-            })
-          ) {
-            return false
-          }
           // 通过群信息/用户信息/消息信息 组成atMe对象
           let team = this.groupList.find(group => {
             return group.teamid == msgInfo.toid
           })
+          // console.log('@me找到信息', team)
           // 请求用户信息
           GROUPAPI.gUserInfo({ userid: msgInfo.fromid })
             .then(res => {
               if (res.data.code === '0000') {
                 let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
+                // 如果@我的消息在缓存atList中已经存在(同群同人),不做操作。
+                if (
+                  this.atMeList && this.atMeList.length > 0 &&
+                  this.atMeList.find(oldAt => {
+                    // console.log(msgInfo, oldAt)
+                    return (
+                      oldAt.groupId == msgInfo.toid && oldAt.userId == msgInfo.fromid
+                    )
+                  })
+                ) {
+                  // console.log('已经存在？')
+                  return false
+                }
+                // console.log('@me,请求用户信息', resData)
                 // 在atList中新增at信息
                 let addAtMe = new AtMe({
                   groupId: msgInfo.toid, // 群id
@@ -838,6 +821,7 @@ export default {
                   userName: resData.nickname, // 用户名
                   sendTime: msgInfo.sendTime // 发送时间
                 })
+                // console.log('@me,请求用户信息1', addAtMe)
                 this.SET_ADDATME({
                   atMe: addAtMe
                 })
@@ -853,9 +837,9 @@ export default {
     },
     // 消息处理
     msgHandler() {
-      // console.log('进入消息处理msgHandler')
+      console.log('进入消息处理msgHandler')
       // 会话
-      if (this.chatType === SESSION_CHATTYPE) {
+      if (this.chatType == SESSION_CHATTYPE) {
         // 若当前会话存在，就去取消息列表，否则初始化为空数组
         if (!this.sessionInfo || !this.sessionInfo.messageList) {
           this.msgData = []
@@ -863,15 +847,16 @@ export default {
         }
         this.msgData = this.sessionInfo.messageList
         // 群聊
-      } else if (this.chatType === GROUP_CHATTYPE) {
+      } else if (this.chatType == GROUP_CHATTYPE) {
         // 若群消息列表存在，通过群成员列表完善信息，否则初始化为空数组
         if (!this.groupInfo || !this.groupInfo.messageList) {
           this.msgData = []
           return false
         }
+        console.log(this.groupInfo.messageList, this.memberList)
         this.groupInfo.messageList.forEach((e, i, arr) => {
           this.memberList.forEach((em, im, arrm) => {
-            if (e.fromid === em.memberid) {
+            if (e.fromid == em.memberid) {
               e.nickname = em.nickname
               e.headurl = em.headurl
             }
@@ -879,7 +864,7 @@ export default {
         })
         this.msgData = this.groupInfo.messageList
         // 私聊
-      } else if (this.chatType === PRIVATE_CHATTYPE) {
+      } else if (this.chatType == PRIVATE_CHATTYPE) {
         // 若私聊列表存在，处理安卓消息格式，否则初始化空数组
         if (!this.privateInfo || !this.privateInfo.messageList) {
           this.msgData = []
@@ -898,7 +883,7 @@ export default {
         })
         this.msgData = this.privateInfo.messageList
         // 同伴
-      } else if (this.chatType === FRIEND_CHATTYPE) {
+      } else if (this.chatType == FRIEND_CHATTYPE) {
         // 若当前同伴存在，就去取消息列表，否则初始化为空数组
         if (!this.friendInfo || !this.friendInfo.messageList) {
           this.msgData = []
@@ -909,6 +894,7 @@ export default {
     },
     // 处理消息内容
     showMsgDataHandler(data) {
+      console.log('同伴消息', data, this.chatType)
       let result = msgDataHandler(data, this.chatType)
       return result
     },

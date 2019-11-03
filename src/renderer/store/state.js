@@ -37,7 +37,7 @@ const state = {
 	friendList: null, // 同伴列表
 	groupList: null, // 群聊列表
 	privateList: null,  // 私聊列表
-	atMeList: null,	// @我列表
+	atMeList: [],	// @我列表
 	memberList: null, // 群成员列表
 	sendMsgList: []  // 发送的消息列表(发送中-失败)
 }

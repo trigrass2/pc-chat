@@ -29,11 +29,11 @@ export const MSG_SUC = 1
 export const MSG_FAI = 2
 
 // 消息数据处理
-export function msgDataHandler(data, chatType, id) {
+export function msgDataHandler(data) {
   // console.log('消息数据处理', data)
   var newMsg = copy(data)
   // 文本表情——表情字符串替换为图片img节点
-  if (newMsg.mediatype === 1 || newMsg.mediatype === 0) {
+  if (newMsg.mediatype == 1 || newMsg.mediatype == 0) {
     var regex = /\[(.+?)\]/g
     var result
     // 匹配到表情对应的文字文本
@@ -57,7 +57,7 @@ export function msgDataHandler(data, chatType, id) {
       newMsg.content = newMsg.msgbody
     }
   // 图片消息——直接拼接成img标签
-  } else if (newMsg.mediatype === 3) {
+  } else if (newMsg.mediatype == 3) {
     // scale: Width/height
     // if (newMsg.scale) {
     //   var scale = newMsg.scale
@@ -206,7 +206,7 @@ export function msgDataHandler(data, chatType, id) {
     // }
     newMsg.content = `<img class='capture' src='${newMsg.msgbody}' style="background-size: contain; width: 100px; height:100px;"></img>`
   // 图文消息——暂不支持
-  } else if (newMsg.mediatype === 5) {
+  } else if (newMsg.mediatype == 5) {
     newMsg.content = ''
   }
   // setTimeout(() => {
