@@ -180,6 +180,9 @@ const mutations = {
   // 会话列表——整体修改
   [types.SET_SESSIONLIST](state, data) {
     state.sessionList = data.sessionList
+    state.sessionList = state.sessionList.sort((a, b) => {
+      return b.timeline - a.timeline
+    })
     // storage.setItem('captureImg', data.captureImg)
   },
   // 会话列表——修改某个会话
@@ -190,6 +193,9 @@ const mutations = {
   // 会话列表——新增某个会话
   [types.SET_ADDSESSION](state, data) {
     state.sessionList.push(data.session)
+    state.sessionList = state.sessionList.sort((a, b) => {
+      return b.timeline - a.timeline
+    })
     // storage.setItem('captureImg', data.captureImg)
   },
   // 同伴列表——整体修改

@@ -51,28 +51,30 @@ export default {
     save() {},
     // 选取成功
     ok() {
-        if (!this.capture.selectRect) {
-          return
-        }
-        // console.log('图片截取进入1')
-        // 获取图片地址
-        let url = this.capture.getImageUrl()
-        let scale = this.capture.getImageScale()
-        // 声音
-        this.audio.play()
-        this.audio.onended = () => {
-          window.close()
-          // this.$electron.ipcRenderer.send('close')
-        }
-        // console.log('图片截取进入2')
-        // clipboard模块提供方法来供复制和粘贴操作
-        this.$electron.clipboard.writeImage(this.$electron.nativeImage.createFromDataURL(url))
-        this.$electron.ipcRenderer.send('capture-screen', {
-          type: 'complete',
-          url,
-          scale
-        })
-        // console.log('图片截取进入3')
+      if (!this.capture.selectRect) {
+        return
+      }
+      // console.log('图片截取进入1')
+      // 获取图片地址
+      let url = this.capture.getImageUrl()
+      let scale = this.capture.getImageScale()
+      // 声音
+      this.audio.play()
+      this.audio.onended = () => {
+        window.close()
+        // this.$electron.ipcRenderer.send('close')
+      }
+      // console.log('图片截取进入2')
+      // clipboard模块提供方法来供复制和粘贴操作
+      this.$electron.clipboard.writeImage(
+        this.$electron.nativeImage.createFromDataURL(url)
+      )
+      this.$electron.ipcRenderer.send('capture-screen', {
+        type: 'complete',
+        url,
+        scale
+      })
+      // console.log('图片截取进入3')
     },
     // 重置选区
     reset() {
@@ -95,7 +97,7 @@ export default {
       // platform——操作系统名
       if (require('os').platform() === 'win32') {
         // desktopCapturer.getSources——发起一个请求，获取所有桌面资源
-        require('electron').desktopCapturer.getSources(
+        this.$electron.desktopCapturer.getSources(
           {
             // 列出了可以捕获的桌面资源类型
             types: ['screen'],
@@ -105,9 +107,18 @@ export default {
           (e, sources) => {
             // 回调函数——Source 对象数组, 每个 Source 表示了一个捕获的屏幕或单独窗口
             // 找到当前截屏窗口
-            let selectSource = sources.filter(
+            // console.log('selectSource', sources, this.curScreen)
+            var selectSource = sources.filter(
               source => source.display_id + '' === this.curScreen.id + ''
-            )[0]
+            )
+            // 有时候获取source.display_id = "",则用主屏幕
+            if (selectSource.length < 1) {
+              selectSource = sources.filter(
+                source => source.name === 'Entire screen'
+              )
+            }
+            selectSource = selectSource[0]
+            // console.log('获取到的selectSource', selectSource)
             // 提醒用户需要使用音频/视频输入设备(比如相机，屏幕共享，或者麦克风)
             // 如果用户给予许可，successCallback回调
             // MediaStream对象作为回调函数的参数。
@@ -162,6 +173,7 @@ export default {
     },
     // 根据传入的stream流，创建video标签，把video显示在canvas画布上，通过canvas截取图片交给回调函数
     handleStream(stream) {
+      // console.log('获取到stream', stream)
       // 截屏窗口透明度和鼠标样式恢复正常
       document.body.style.cursor = this.oldCursor
       document.body.style.opacity = '1'
@@ -176,6 +188,8 @@ export default {
           return
         }
         loaded = true
+        video.play()
+        video.pause()
         // 设置video宽高
         video.style.height = video.videoHeight + 'px' // videoHeight
         video.style.width = video.videoWidth + 'px' // videoWidth
@@ -185,11 +199,13 @@ export default {
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
         let ctx = canvas.getContext('2d')
+        // console.log('把video内容投在canvas画布上')
         // 把video内容投在canvas画布上
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         if (this.callback) {
           // 把canvas保存成base64图片交给回调函数
+          // console.log('把canvas保存成base64图片交给回调函数')
           this.callback(canvas.toDataURL('image/png'))
         } else {
           // console.log('Need callback!')
@@ -207,8 +223,9 @@ export default {
       video.srcObject = stream
       document.body.appendChild(video)
     },
-    
+
     callback(imgSrc) {
+      // console.log('callback', imgSrc)
       this.capture = new CaptureEditor(this.$refs.canvas, this.$refs.bg, imgSrc)
       let onDrag = selectRect => {
         this.$refs.toolbar.style.display = 'none'
@@ -236,13 +253,16 @@ export default {
         }
       }
       this.capture.on('end-dragging', onDragEnd)
-      this.$electron.ipcRenderer.on('capture-screen', (e, { type, screenId }) => {
-        if (type === 'select') {
-          if (screenId && screenId !== this.curScreen.id) {
-            this.capture.disable()
+      this.$electron.ipcRenderer.on(
+        'capture-screen',
+        (e, { type, screenId }) => {
+          if (type === 'select') {
+            if (screenId && screenId !== this.curScreen.id) {
+              this.capture.disable()
+            }
           }
         }
-      })
+      )
 
       // $btnSave.addEventListener('click', () => {
       //   let url = capture.getImageUrl()
@@ -305,7 +325,7 @@ div {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
 }
 .bg {
   position: absolute;

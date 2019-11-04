@@ -20,7 +20,7 @@ export default class Session {
     this.realinfo = session.realinfo || null // 客户真实信息
     this.currMsgPage = 1 // 当前会话消息页数
     this.sesorigin = session.sesorigin || null // ??
-    this.messageList = []
+    this.messageList = session.messageList || []
     // this.hisdata = session.hisdata || null  // 请求历史消息用的
     // this.lastmessage = (status == 1 ? '会话已结束' : '')
   }

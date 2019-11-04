@@ -20,23 +20,28 @@
             IP：
             <span>{{sessionInfo && sessionInfo.sesorigin && sessionInfo.sesorigin.ip}}</span>
           </div>
-          <!-- <div v-if="currentsession.status==0" class="custChange" v-on:click="showCust" >
-            <img src="../components/chat-status/imgs/arrow_switch.png" />
-            <span>转接</span>
+          <div class="cust-wrap" v-show="sessionInfo && sessionInfo.status==0">
+            <div class="kong"></div>
+            <div class="custChange" @click="showCust">
+              <img src="./img/arrow_switch.png" />
+              <span>转接</span>
+            </div>
+            <div v-show="showCustList" class="cust-list" @mouseleave="showCustList=false">
+              <div v-if="custList && custList.length > 0" class="cust-con">
+                <div v-for="cust in custList" @click="changeTo(cust)" class="cust">
+                  <img class="headurl" :src="cust.headurl" />
+                  <span class="name">{{cust.nickname}}</span>
+                  <span class="num">[{{cust.currentnum}}/{{cust.maxsession}}]</span>
+                  <span class="normal" v-if="cust.status==1">[正常]</span>
+                  <span class="leave" v-if="cust.status==2">[离开]</span>
+                  <span class="offline" v-if="cust.status==0">[离线]</span>
+                </div>
+              </div>
+              <div v-else class="noData">
+                <span>暂无可用客服</span>
+              </div>
+            </div>
           </div>
-          <div v-if="showCustList" class="list" v-on:mouseleave="showCustList=false">
-            <div v-for="cust in custList" v-on:click="changeTo(cust)" class="cust">
-              <div class="head" ><img v-bind:src="cust.headurl" /></div>
-              {{cust.nickname}}
-              <span style="color:green">[{{cust.currentnum}}/{{cust.maxsession}}]</span>
-              <span v-if="cust.status==1" style="color:green">[正常]</span>
-              <span v-if="cust.status==2" style="color:#999">[离开]</span>
-              <span v-if="cust.status==0" style="color:#ccc">[离线]</span>
-            </div>
-            <div v-if="!custList || custList.length==0" class="cust">
-              <span>暂无可用客服</span>
-            </div>
-          </div> -->
         </div>
         <!-- 群聊头部栏 -->
         <div class="title" v-show="chatType == 2 && groupInfo">
@@ -223,8 +228,9 @@ const MenuItem = remote.MenuItem
 export default {
   data() {
     return {
-      // 图片预览列表
-      imgList: [],
+      imgList: [], // 图片预览列表
+      custList: [], // 可用客服列表
+      showCustList: false, // 展示客服列表
       // 请求群历史记录——参数
       groupMsgParams: {
         toid: '', // 群id
@@ -312,11 +318,15 @@ export default {
     ])
   },
   created() {
+    // 监听可用客服列表——转接
+    this.listenCustList()
+    // 初始化右键菜单
     this.initMenu()
     // 监听会话消息
     this.listenNewSessionMsg()
     // 监听同伴消息
     this.listenNewFriendMsg()
+    // 心跳轮训
     this.getHertBeat()
   },
   watch: {
@@ -396,6 +406,57 @@ export default {
     }
   },
   methods: {
+    // 选中客服——转接 
+    changeTo(cust) {
+      let _data = {
+        userid: this.sUserInfo.userid,
+        sesid: this.sessionInfo.sesid,
+        guestsid: this.sessionInfo.guestsid,
+        customerid: cust.userid
+      }
+      let data = JSON.stringify({ cmdid: 1204, data: _data })
+      this.$ws.send(data)
+    },
+    // 监听客服转接——回执
+    listenChangeTo() {
+      this.$wsBus.$on('1204', res => {
+        if (res.returncode == '0') {
+          this.sessionList.find(e => {
+            return e.sesid == res.data.sesid
+          }).status = 1
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
+    // 展示客服列表
+    showCust() {
+      this.showCustList = !this.showCustList
+      if (this.showCustList) {
+        this.loadCustList()
+      }
+    },
+    // 请求客服列表
+    loadCustList() {
+      let _data = {
+        userid: this.sUserInfo.userid
+      }
+      let data = JSON.stringify({ cmdid: 1207, data: _data })
+      this.$ws.send(data)
+    },
+    // 监听客服列表
+    listenCustList() {
+      this.$wsBus.$on('1207', res => {
+        if (res.returncode == '0') {
+          console.log('可用客服列表')
+          if (res.data) {
+            this.custList = res.data
+          }
+        } else {
+          this.$refs.layer.show(res.returnmsg)
+        }
+      })
+    },
     // 心跳长轮询(未读私聊消息/未读群成员/未读群聊消息)
     async getHertBeat() {
       console.log('心跳长轮训')
@@ -711,7 +772,7 @@ export default {
      */
     async getPrivateMsg(privateInfo, isUnRead) {
       if (!privateInfo) {
-        return 
+        return
       }
       this.privateMsgParams.toid = this.gUserInfo.userId // 接收者id
       this.privateMsgParams.fromid = privateInfo.id // 发送者id
@@ -748,7 +809,11 @@ export default {
                     this.privateInfo &&
                     privateInfo.id == this.privateInfo.id
                   ) {
-                    console.log('离开未读消息设置', privateInfo.id, this.privateInfo.id)
+                    console.log(
+                      '离开未读消息设置',
+                      privateInfo.id,
+                      this.privateInfo.id
+                    )
                     return
                   }
                   // 设置未读消息数量
@@ -801,11 +866,13 @@ export default {
                 let resData = JSON.parse(this.$crypto.decrypt(res.data.body))
                 // 如果@我的消息在缓存atList中已经存在(同群同人),不做操作。
                 if (
-                  this.atMeList && this.atMeList.length > 0 &&
+                  this.atMeList &&
+                  this.atMeList.length > 0 &&
                   this.atMeList.find(oldAt => {
                     // console.log(msgInfo, oldAt)
                     return (
-                      oldAt.groupId == msgInfo.toid && oldAt.userId == msgInfo.fromid
+                      oldAt.groupId == msgInfo.toid &&
+                      oldAt.userId == msgInfo.fromid
                     )
                   })
                 ) {
@@ -1089,6 +1156,13 @@ export default {
 }
 </script>
 <style lang='scss' scoped>
+.noData {
+  width: 100%;
+  text-align: center;
+  margin-top: 40px;
+  font-size: 16px;
+  color: rgb(83, 83, 83);
+}
 .wrap {
   flex: 1;
   display: flex;
@@ -1140,6 +1214,76 @@ export default {
       text-align: right;
     }
   }
+  .cust-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    .kong{
+      flex:1;
+    }
+    .custChange {
+      margin-top: -30px;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 4px;
+      width: 60px;
+      display: flex;
+      align-items: center;
+      height: 30px;
+      background-color: #fff;
+      border-radius: 4px;
+      &:hover {
+        background-color: #e5e5e5;
+      }
+      img{
+        width: 18px;
+        margin-right: 4px;
+      }
+    }
+    .cust-list{
+      position: absolute;
+      right: 0;
+      top: -50px;
+      height: 300px;
+      width: 200px;
+      overflow: scroll;
+      box-shadow: 0 0 10px rgba(0,0,0,.5);
+      z-index: 1;
+      background-color: #fff;
+      .cust-con{
+        .cust{
+          display: flex;
+          align-items: center;
+          justify-content: space-around;
+          border-bottom: 1px solid #e5e5e5;
+          padding: 10px;
+          cursor: pointer;
+          &:hover{
+            background-color: #e5e5e5;
+          }
+          .num{
+            color: green;
+          }
+          .normal{
+            color:green;
+          }
+          .leave{
+            color:#999;
+          }
+          .offline{
+            color:#ccc;
+          }
+          .headurl{
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+          }
+          
+        }
+      }
+    }
+  }
+  
 }
 
 .chat-content {

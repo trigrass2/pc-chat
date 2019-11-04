@@ -249,18 +249,20 @@ export default {
       this.$wsBus.$on('2002', res => {
         if (res.returncode === '0') {
           if (res.data.msgtype == SESSION_MSG) {
-            // console.log('发送会话消息回执', res)
             // 消息状态改变——发送成功
-            this.sessionInfo.messageList.find(e => {
+            let sessionInfo = this.sessionList.find(e => {
+              return e.sesid == res.data.sesid
+            })
+            let sessionIndex = this.sessionList.findIndex((e, i, arr) => {
+              return e.sesid == res.data.sesid
+            })
+            sessionInfo.messageList.find(e => {
               return e.msgid == res.data.msgkey
             }).sendStatus = MSG_SUC
-            let sessionIndex = this.sessionList.findIndex((e, i, arr) => {
-              return this.sessionInfo.sesid == e.sesid
-            })
             // 更新该会话信息
             this.SET_EDITSESSION({
               index: sessionIndex,
-              session: this.sessionInfo
+              session: sessionInfo
             })
           }
           if (res.data.msgtype == FRIEND_MSG) {
@@ -300,12 +302,12 @@ export default {
       })
     },
     // 发送消息
-    send(message) {
+    send(message, isDirect) {
       // console.log(this.chatType, this.friendInfo)
       // 发送会话/同伴消息
       if (
         this.chatType == SESSION_CHATTYPE ||
-        this.chatType == FRIEND_CHATTYPE
+        this.chatType == FRIEND_CHATTYPE || isDirect
       ) {
         let data = JSON.stringify({ cmdid: 2001, data: message })
         // console.log('我发送的会话/同伴消息', data)
@@ -424,22 +426,23 @@ export default {
       }
     },
     // 准备消息发送
-    sendFirst(mediatype, msgbody) {
+    sendFirst(mediatype, msgbody, session) {
       // 未选中聊天对象
-      if (
-        (this.chatType == SESSION_CHATTYPE && !this.sessionInfo) ||
+      if (!session &&
+        ((this.chatType == SESSION_CHATTYPE && !this.sessionInfo) ||
         (this.chatType == GROUP_CHATTYPE && !this.groupInfo) ||
         (this.chatType == PRIVATE_CHATTYPE && !this.privateInfo) ||
-        (this.chatType == FRIEND_CHATTYPE && !this.friendInfo)
+        (this.chatType == FRIEND_CHATTYPE && !this.friendInfo))
       ) {
         this.$refs.layer.show('请选择聊天对象!')
         return false
       }
       // 会话已结束，不能聊天
       if (
+        (!session && 
         this.chatType == SESSION_CHATTYPE &&
         this.sessionInfo &&
-        this.sessionInfo.status == '1'
+        this.sessionInfo.status == '1') || (session && session.status == '1')
       ) {
         this.$refs.layer.show('当前会话已结束！')
         return false
@@ -474,12 +477,19 @@ export default {
         // console.log('处理完表情', msgbody)
       }
       // 发送会话消息
-      if (this.chatType == SESSION_CHATTYPE) {
+      if (this.chatType == SESSION_CHATTYPE || session) {
+        // 直接调用触发的发送消息
+        if (session) {
+          var sessionInfo = session
+        // 点发送消息触发的发送消息
+        } else {
+          sessionInfo = this.sessionInfo
+        }
         // 要发送的会话消息
         let message = {
           fromid: this.sUserInfo.userid,
-          toid: this.sessionInfo.guestsid,
-          sesid: this.sessionInfo.sesid,
+          toid: sessionInfo.guestsid,
+          sesid: sessionInfo.sesid,
           msgtype: SESSION_MSG,
           mediatype: mediatype,
           msgkey: uuid(32, 16), // 32位随机数
@@ -498,27 +508,33 @@ export default {
           msgbody: message.msgbody, // 消息内容
           mediatype: Number(message.mediatype), // 消息内容类型(1文本表情/3图片url/5推文)
           recall: '0', // 是否撤回(0正常/1已撤回)
-          sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss'), // 发送消息的时间
+          sendTime: formatDate(Date.now(), 'yyyy-MM-dd hh:mm:ss'), // 发送消息的时间
           lastMsgid: '', // 重发消息时，带上上一条消息的msgid(不传/msgid)
           resend: '' // 是否重发消息(不传/String(true))
           // id: message.toid, // 群id
         }
         // 更新会话
-        this.sessionInfo.messageList.push(goMyMsg)
+        sessionInfo.messageList.push(goMyMsg)
         let sessionIndex = this.sessionList.findIndex((e, i, arr) => {
-          return this.sessionInfo.sesid == e.sesid
+          return sessionInfo.sesid == e.sesid
         })
-        this.SET_EDITSESSION({
-          index: sessionIndex,
-          session: this.sessionInfo
-        })
+        if (session) {
+          this.SET_ADDSESSION({
+            session: sessionInfo
+          })
+        } else {
+          this.SET_EDITSESSION({
+            index: sessionIndex,
+            session: sessionInfo
+          })
+        }
         // 消息发送状态管理堆
         this.SET_ADDSENDMSG({
           msgid: message.msgkey,
           sendMsg: message,
           showMsg: goMyMsg
         })
-        this.send(message)
+        this.send(message, session)
       }
       // 发送同伴消息
       if (this.chatType == FRIEND_CHATTYPE) {
@@ -541,7 +557,7 @@ export default {
           headurl: this.sUserInfo.headurl, // 发送者头像
           msgbody: message.msgbody, // 消息内容
           mediatype: Number(message.mediatype), // 消息内容类型(1文本表情/3图片url/5推文)
-          sendTime: formatDate(message.sendtime, 'yyyy-MM-dd hh:mm:ss') // 发送消息的时间
+          sendTime: formatDate(Date.now(), 'yyyy-MM-dd hh:mm:ss') // 发送消息的时间
         }
         // 更新同伴信息
         this.friendInfo.messageList.push(goMyMsg)
@@ -729,6 +745,7 @@ export default {
       SET_SESMSGLIST: 'SET_SESMSGLIST', // 当前会话消息设置
       SET_SESSIONLIST: 'SET_SESSIONLIST', // 更新会话列表
       SET_EDITSESSION: 'SET_EDITSESSION', // 修改指定会话
+      SET_ADDSESSION: 'SET_ADDSESSION', // 增加会话
       SET_FRIENDLIST: 'SET_FRIENDLIST', // 更新同伴列表
       SET_EDITFRIEND: 'SET_EDITFRIEND', // 修改指定同伴
       SET_EDITGROUP: 'SET_EDITGROUP',

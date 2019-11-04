@@ -30,6 +30,7 @@
         @scrollToBottom="scrollToBottom"
         @getGroupMsgFirst="getGroupMsgFirst"
         @getPrivateMsgFirst="getPrivateMsgFirst"
+        @sessionWelcom="sessionWelcom"
       ></Sidebar>
       <div class="chat-main">
         <!-- 聊天头部栏 -->
@@ -451,6 +452,10 @@ export default {
       await this.$refs.sessionInfo.getSessionMsg(sessionInfo, page)
       // 会话摘要
       await this.$refs.sessionInfo.loadSummary(sessionInfo)
+    },
+    // 去发送欢迎消息
+    sessionWelcom(sessionInfo) {
+      this.$refs.textbox.sendFirst('1', '请问需要什么帮助?', sessionInfo)
     },
     // 获取群相关信息(成员/聊天记录)
     async getGroupInfo(groupInfo, type) {

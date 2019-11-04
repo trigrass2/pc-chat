@@ -18,11 +18,11 @@ let captureWins = []
 app.on('ready', init)
 
 // 所有窗口关闭，应用程序就退出
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+// app.on('window-all-closed', () => {
+//   if (process.platform !== 'darwin') {
+//     app.quit()
+//   }
+// })
 
 // 当应用被激活时发出。各种操作都可以触发此事件, 例如首次启动应用程序、尝试在应用程序已运行时或单击应用程序的坞站或任务栏图标时重新激活它。
 app.on('activate', () => {
@@ -39,7 +39,6 @@ app.on('will-quit', () => {
 
 // 登录
 ipcMain.on('login', (event, data) => {
-  focusWindowClose()
   mainWin = NewWindow(
     {
       width: 1000,
@@ -50,6 +49,7 @@ ipcMain.on('login', (event, data) => {
     },
     'main'
   )
+  focusWindowClose()
 })
 // 登录session塞入请求头中
 ipcMain.on('getSession', (event, data) => {

@@ -31,7 +31,7 @@
                   <div class="content">{{item.content}}</div>
                 </li>
               </template>
-              <div v-else class="noData">暂无历史消息</div>
+              <div v-else class="noData">暂无摘要</div>
             </ul>
           </div>
           <!-- 编辑 -->
@@ -191,7 +191,6 @@ export default {
       sessionChatList(this.sessionMsgParams)
         .then(res => {
           if (res.data.returncode == '0') {
-            // console.log('会话历史', res)
             this.sessionMsgParams.pages = res.data.totalpage
             // 翻页状态判断
             this.goPageStatus(page, res.data.totalpage)
@@ -273,7 +272,7 @@ export default {
       }
       loadSummary({guestsid: sessionInfo.guestsid}).then(res => {
         if (res.data.returncode == '0') {
-          console.log(res)
+          console.log('摘要列表', res)
           this.summarylist = res.data.list
         } else {
           this.$refs.layer.show(res.returnmsg)

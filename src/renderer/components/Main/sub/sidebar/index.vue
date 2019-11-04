@@ -554,7 +554,6 @@ export default {
     // 监听新会话进入
     listenNewSession() {
       this.$wsBus.$on('1201', res => {
-        console.log('6')
         if (res.returncode === '0') {
           let sessionList = this.sessionList
           let newSession = res.data
@@ -589,12 +588,12 @@ export default {
             }
           ]
           let addSession = new Session(newSession)
-          console.log('新接入会话', addSession)
-          this.SET_ADDSESSION({
-            session: addSession
-          })
+          this.$emit('sessionWelcom', copy2(addSession))
+          console.log('新接入会话', copy2(addSession))
+          // this.SET_ADDSESSION({
+          //   session: addSession
+          // })
           // 回复欢迎语
-          // if(this.welcomtext){
           //   var back = kx.send(0,d.userid,d.sesid,vm.welcomtext);
           //   if(back && back.msgkey){
           //     var msg = {
@@ -609,7 +608,6 @@ export default {
           //       };
           //     session.messageList.push(msg);
           //   }
-          // }
         } else {
           this.$refs.layer.show(res.returnmsg)
         }
@@ -647,6 +645,7 @@ export default {
     },
     // 选中会话
     async selectSessionChat(session, index) {
+      console.log('session', session)
       let sessionList = this.sessionList
       // 更新所有会话状态
       sessionList.forEach((e, i, arr) => {
@@ -697,7 +696,7 @@ export default {
               res.data.list.reverse()
               res.data.list.forEach((message, i) => {
                 message.fromHistory = true
-                message.isMine = message.fromid !== session.sesorigin.userid
+                message.isMine = message.fromid == this.sUserInfo.userid
                 let msg = new SessionMessage(message)
                 msgs.push(msg)
               })
@@ -1043,6 +1042,7 @@ export default {
   .chat-list {
     height: 100%;
     background-color: $blank;
+    padding-bottom: 100px;
     overflow: auto;
     .noData {
       width: 100%;
